@@ -1,0 +1,8 @@
+struct StructTest(x,y)
+
+def struct_test():
+//	obj = StructTest("A string", 17)
+//	print(obj.x)
+//	print(obj.y)
+//  {x,y} = obj
+end
