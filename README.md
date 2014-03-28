@@ -84,7 +84,6 @@ eople> for element in string_array:
 Conditionals are also unsurprising:
 ```
 eople> if string_array.size() == 5:
-```
 ......     string_array.pop()
 ......     print("New array size after pop: " + to_string(string_array.size()))
 ...... else:
