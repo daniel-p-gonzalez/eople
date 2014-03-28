@@ -4,13 +4,7 @@
 
 #include <queue>
 
-#define PRINT_DEBUG 0
-
-#if PRINT_DEBUG == 1
-  #define printf Log::Print
-#else
-  #define printf
-#endif
+#define LOG_DEBUG 0
 
 namespace Eople
 {
@@ -106,35 +100,30 @@ size_t ByteCodeGen::GenExpressionTerm( Node::Literal* literal, bool )
     case ValueType::FLOAT:
     {
       size_t stack_index = SYMBOL_TO_STACK(literal);
-      printf("\nOpcode::LoadConstant   r(%d), (%s)\n", stack_index, literal->value_string.c_str());
       *StackObject(stack_index) = Object::GetFloat(literal->GetAsFloatLiteral()->value);
       return stack_index;
     }
     case ValueType::INT:
     {
       size_t stack_index = SYMBOL_TO_STACK(literal);
-      printf("\nOpcode::LoadConstant   r(%d), (%s)\n", stack_index, literal->value_string.c_str());
       *StackObject(stack_index) = Object::GetInt(literal->GetAsIntLiteral()->value);
       return stack_index;
     }
     case ValueType::BOOL:
     {
       size_t stack_index = SYMBOL_TO_STACK(literal);
-      printf("\nOpcode::LoadConstant   r(%d), (%s)\n", stack_index, literal->value_string.c_str());
       *StackObject(stack_index) = Object::GetBool(literal->GetAsBoolLiteral()->value);
       return stack_index;
     }
     case ValueType::STRING:
     {
       size_t stack_index = SYMBOL_TO_STACK(literal);
-      printf("\nOpcode::LoadConstant   r(%d), (%s)\n", stack_index, literal->value_string.c_str());
       *StackObject(stack_index) = Object::GetString(literal->GetAsStringLiteral()->value);
       return stack_index;
     }
     case ValueType::TYPE:
     {
       size_t stack_index = SYMBOL_TO_STACK(literal);
-      printf("\nOpcode::LoadConstant   r(%d), (%s)\n", stack_index, literal->value_string.c_str());
       *StackObject(stack_index) = Object::GetType(literal->GetAsTypeLiteral()->type);
       return stack_index;
     }
@@ -493,7 +482,6 @@ size_t ByteCodeGen::GenForInit( Node::ForInit* node )
 
 #define OPCODE_CASE(op)     case op: \
                             { \
-                              printf("\n"#op "   "); \
                               m_function->code.push_back(ByteCode(op)); \
                               break; \
                             }
@@ -574,7 +562,6 @@ size_t ByteCodeGen::PushOpcode( Opcode opcode )
 size_t ByteCodeGen::PushCCall( InstructionImpl cfunction )
 {
   // TODO: bubble cfunction name up to here
-  printf("\nCCall ");
   m_function->code.push_back(ByteCode(cfunction));
   m_current_operand = 0;
   ++m_opcode_count;
@@ -596,25 +583,21 @@ void ByteCodeGen::PushOperand( size_t operand, bool allow_new_op )
   {
     case 0:
     {
-      printf("r(%d)", operand);
       m_function->code[last_op].a = (Operand)operand;
       break;
     }
     case 1:
     {
-      printf(", r(%d)", operand);
       m_function->code[last_op].b = (Operand)operand;
       break;
     }
     case 2:
     {
-      printf(", r(%d)", operand);
       m_function->code[last_op].c = (Operand)operand;
       break;
     }
     case 3:
     {
-      printf(", r(%d)", operand);
       m_function->code[last_op].d = (Operand)operand;
       break;
     }
@@ -898,7 +881,6 @@ void ByteCodeGen::GenStatement( Node::For* for_loop )
   size_t opcount = m_opcode_count - pre_opcount;
   // TODO: handle overflow
   m_function->code[for_index].d = (u16)opcount;
-  printf("Loop i_count: %d\n", m_function->code[for_index].d);
 }
 
 void ByteCodeGen::GenStatement( Node::While* while_loop )
@@ -1117,8 +1099,6 @@ void ByteCodeGen::ImportCFunctions( ExecutableModule* executable_module, std::ve
 
 void ByteCodeGen::GenFunction( Node::Function* node )
 {
-  printf("\nGenerating Function bytecode: '%s'. Temp count: %d\n", node->name.c_str(), node->temp_count);
-
   // skip function templates
   // TODO: do proper check for function templates
   if( !node->is_c_call && m_function_node->current_specialization == 0 && m_function_node->specializations.size() )
@@ -1364,7 +1344,7 @@ InstructionImpl ByteCodeGen::GetCFunction( std::string name, size_t specializati
 
 void ByteCodeGen::GenModule( ExecutableModule* module )
 {
-#if PRINT_DEBUG == 1
+#if LOG_DEBUG == 1
   Log::PopContext();
   Log::AutoFile ir_logger(module->module->name + ".eir");
 #endif
