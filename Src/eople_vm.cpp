@@ -13,13 +13,6 @@
 #include <string>
 #include <chrono>
 
-#define PRINT_DEBUG 0
-
-#if PRINT_DEBUG == 1
-#else
-  #define printf
-#endif
-
 namespace Eople
 {
 
@@ -91,8 +84,6 @@ InstructionImpl OpcodeToInstruction( Opcode opcode )
 
 void CoreMain( VirtualMachine* vm, u32 id )
 {
-  printf("Core %d online.\n", id);
-
   size_t core_count  = vm->core_count;
   size_t queue_count = vm->queues.size();
 
@@ -193,13 +184,11 @@ void CoreMain( VirtualMachine* vm, u32 id )
 
     if( (tries > max_retries) )
     {
-      printf("Hit max retries.\n");
       tries = 0;
       // Take a mini-nap in case we're spinning, so we don't needlessly burn resources.
       std::this_thread::sleep_for(std::chrono::microseconds(500));
       if( vm->message_count < (core_count - vm->idle_count) )
       {
-        printf("On core (%d), sleeping.\n", id);
         std::unique_lock<std::mutex> lock(vm->idle_lock);
         // Make sure we still need to sleep before we commit to it.
         if( vm->message_count < (core_count - vm->idle_count) )
@@ -217,7 +206,6 @@ void CoreMain( VirtualMachine* vm, u32 id )
           {
             return;
           }
-          printf("On core (%d), waking.\n", id);
           --vm->idle_count;
         }
       }
@@ -229,7 +217,6 @@ void VirtualMachine::Run()
 {
   for( u32 i = 0; i < core_count; ++i )
   {
-    printf("Starting core %d\n", i+1);
     cores.push_back(std::thread(CoreMain, this, i+1));
   }
 }
@@ -252,11 +239,9 @@ void VirtualMachine::Shutdown()
   ready_to_exit.store(1);
   message_waiting_event.notify_all();
 
-  printf("Shutting down cores\n");
   for( u32 i = 0; i < core_count; ++i )
   {
     cores[i].join();
-    printf("Shut down core %d\n", i+1);
   }
 }
 
@@ -303,8 +288,6 @@ void VirtualMachine::SendMessage( CallData call_data )
   queue_lock.unlock();
 
   ++message_count;
-
-//  printf("Message count ++: %d\n", message_count);
 
   std::unique_lock<std::mutex> lock(idle_lock);
   if( message_count > (core_count - idle_count) )
@@ -453,7 +436,6 @@ void VirtualMachine::ExecuteConstructor( CallData call_data, process_t caller )
   const Function* function    = call_data.function;
         process_t process_ref = call_data.process_ref;
 
-//  printf("Initializing process(%d) with constructor '%s'\n", process_ref->process_id, function->name.c_str());
   process_ref->SetupStackFrame( function );
 
   // copy constants to stack
