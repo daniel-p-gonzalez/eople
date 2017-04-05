@@ -1,4 +1,4 @@
-#include "eople.h"
+#include "eople_exec_env.h"
 #include "eople_core.h"
 #include "eople_binop.h"
 #include "eople_control_flow.h"
@@ -138,6 +138,7 @@ void ExecutionEnvironment::ImportBuiltins()
   auto to_string_func = m_builtins.AddFunction( "to_string", Instruction::IntToString, TypeBuilder::GetPrimitiveType(ValueType::INT),
                                                               TypeBuilder::GetPrimitiveType(ValueType::STRING) );
   m_builtins.AddFunctionSpecialization( to_string_func, Instruction::FloatToString, TypeBuilder::GetPrimitiveType(ValueType::FLOAT) );
+  m_builtins.AddFunctionSpecialization( to_string_func, Instruction::PromiseToString, promise_type );
 
   m_ast.modules.push_back( std::move(m_builtins.module) );
 
@@ -152,16 +153,16 @@ bool ExecutionEnvironment::ImportModuleFromFile( std::string file_name )
 
   if( !loadFile( file_name, buffer, buffer_end ) )
   {
-    Log::Print("eve> Opening of file '%s' failed.\n", file_name.c_str());
+    Log::Error("eve> Opening of file '%s' failed.\n", file_name.c_str());
     return false;
   }
 
   const char* file_no_path = file_name.c_str();
-  const char* last_slash = std::strrchr(file_no_path, '/');
+  const char* last_slash = nullptr;//std::strrchr(file_no_path, '/');
   if( last_slash )
     file_no_path = last_slash + 1;
 
-  Log::Print("eve> Importing module '%s'.\n", file_no_path);
+  Log::Debug("eve> Importing module '%s'.\n", file_no_path);
 
   Log::PushContext(file_name.c_str());
 
@@ -182,27 +183,27 @@ bool ExecutionEnvironment::ImportModuleFromFile( std::string file_name )
   auto total_ms = std::chrono::duration_cast<std::chrono::microseconds>(clock::now() - start_time).count();
   if( total_ms < 1000000 )
   {
-    Log::Print( "eve> Total time for import: %f ms.\n", (f64)total_ms/1000.0 );
+    Log::Debug( "eve> Total time for import: %f ms.\n", (f64)total_ms/1000.0 );
   }
   else
   {
-    Log::Print( "eve> Total time for import: %f seconds.\n", (f64)total_ms/1000000.0 );
+    Log::Debug( "eve> Total time for import: %f seconds.\n", (f64)total_ms/1000000.0 );
   }
 
   if( error_count )
   {
-    Log::Print("\n");
-    Log::Print("eve> I'm sorry: import of '%s' has failed with %d errors.\n", file_name.c_str(), error_count);
-    Log::Print("\n");
-    Log::Print("eve> As Manny would say:\n");
+    Log::Error("\n");
+    Log::Error("eve> I'm sorry: import of '%s' has failed with %d errors.\n", file_name.c_str(), error_count);
+    Log::Error("\n");
+    Log::Error("eve> As Manny would say:\n");
     srand( (u32)time(nullptr) );
     size_t quote_count = sizeof(s_calming_quotes)/sizeof(s_calming_quotes[0]);
-    Log::Print("%s\n", s_calming_quotes[rand()%quote_count]);
-    Log::Print("\n");
+    Log::Error("%s\n", s_calming_quotes[rand()%quote_count]);
+    Log::Error("\n");
   }
   else
   {
-    Log::Print("eve> Import of '%s' succeeded. 0 Errors.\n", file_name.c_str());
+    Log::Debug("eve> Import of '%s' succeeded. 0 Errors.\n", file_name.c_str());
   }
 
   return !error_count;
@@ -263,7 +264,7 @@ bool ExecutionEnvironment::ExecuteBuffer( std::string code )
 
 bool ExecutionEnvironment::ExecuteFunction( std::string function_name, bool spawn_in_new_process )
 {
-  Log::Print("eve> Spawning process '%s'.\n", function_name.c_str());
+  Log::Debug("eve> Spawning process '%s'.\n", function_name.c_str());
 
   typedef HighResClock clock;
   auto start_time = clock::now();
@@ -278,7 +279,7 @@ bool ExecutionEnvironment::ExecuteFunction( std::string function_name, bool spaw
     {
       if( func->name == function_name )
       {
-        Log::Print("eve> Found cached function.\n");
+        Log::Debug("eve> Found cached function.\n");
         function = func.get();
         break;
       }
@@ -296,7 +297,7 @@ bool ExecutionEnvironment::ExecuteFunction( std::string function_name, bool spaw
     }
     else
     {
-      Log::Print("eve> Could not find function '%s'.\n", function_name.c_str());
+      Log::Error("eve> Could not find function '%s'.\n", function_name.c_str());
       ++error_count;
     }
 
@@ -325,38 +326,38 @@ bool ExecutionEnvironment::ExecuteFunction( std::string function_name, bool spaw
     auto total_ms = std::chrono::duration_cast<std::chrono::microseconds>(clock::now() - start_time).count();
     if( total_ms < 1000000 )
     {
-      Log::Print( "eve> Total time for code generation: %f ms.\n", (f64)total_ms/1000.0 );
+      Log::Debug( "eve> Total time for code generation: %f ms.\n", (f64)total_ms/1000.0 );
     }
     else
     {
-      Log::Print( "eve> Total time for code generation: %f seconds.\n", (f64)total_ms/1000000.0 );
+      Log::Debug( "eve> Total time for code generation: %f seconds.\n", (f64)total_ms/1000000.0 );
     }
 
     if( error_count )
     {
-      Log::Print("\n");
-      Log::Print("eve> I'm sorry: code generation of '%s' has failed with %d errors.\n", function_name.c_str(), error_count);
-      Log::Print("\n");
-      Log::Print("eve> As Manny would say:\n");
+      Log::Error("\n");
+      Log::Error("eve> I'm sorry: code generation of '%s' has failed with %d errors.\n", function_name.c_str(), error_count);
+      Log::Error("\n");
+      Log::Error("eve> As Manny would say:\n");
       srand( (u32)time(nullptr) );
       size_t quote_count = sizeof(s_calming_quotes)/sizeof(s_calming_quotes[0]);
-      Log::Print("%s\n", s_calming_quotes[rand()%quote_count]);
-      Log::Print("\n");
+      Log::Error("%s\n", s_calming_quotes[rand()%quote_count]);
+      Log::Error("\n");
     }
 
     if( !error_count )
     {
-      Log::Print("eve> Code generation of %s succeeded. %d Errors.\n", function_name.c_str(), error_count);
+      Log::Debug("eve> Code generation of %s succeeded. %d Errors.\n", function_name.c_str(), error_count);
 
       if( !entry_found )
       {
-        Log::Print("eve> Could not find function: %s.\n", function_name.c_str());
+        Log::Error("eve> Could not find function: %s.\n", function_name.c_str());
       }
     }
   }
 
   Log::ClearContext();
-  Log::Print("\n");
+  Log::Debug("\n");
 
   if( function )
   {
@@ -370,7 +371,7 @@ bool ExecutionEnvironment::ExecuteFunction( std::string function_name, bool spaw
       m_vm.ExecuteFunction( CallData(function, m_main_process) );
     }
     auto total_ms = std::chrono::duration_cast<std::chrono::microseconds>(clock::now() - start_time).count();
-    Log::Print("eve> Execution completed in %f seconds.\n", (f64)total_ms/1000000.0 );
+    Log::Debug("\neve> Execution completed in %f seconds.\n", (f64)total_ms/1000000.0 );
   }
 
   return !error_count;

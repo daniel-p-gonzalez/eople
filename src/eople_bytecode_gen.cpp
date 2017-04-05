@@ -2,6 +2,7 @@
 #include "eople_control_flow.h"
 #include "eople_binop.h"
 
+#include <iostream>
 #include <queue>
 
 #define LOG_DEBUG 0

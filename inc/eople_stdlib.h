@@ -29,6 +29,7 @@ bool FloatToInt( process_t process_ref );
 
 bool IntToString( process_t process_ref );
 bool FloatToString( process_t process_ref );
+bool PromiseToString( process_t process_ref );
 
 } // namespace Instruction
 } // namespace Eople

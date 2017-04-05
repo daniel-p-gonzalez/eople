@@ -404,7 +404,7 @@ def stdin_test():
 	if answer == 'yes' or answer == 'y':
 		print('Great! Thank you for participating.')
 		print('PASSED.')
-	elseif answer == 'no' or answer == 'n':
+	elif answer == 'no' or answer == 'n':
 		print('Well that\'s unfortunate. Thanks anyway. I\'m sure it wasn\'t your fault.')
 		print( 'FAILED.')
 		error_count = error_count + 1
@@ -445,14 +445,14 @@ def unicode_test():
 	if answer == 'yes' or answer == 'y':
 		print('Fantastic!' )
 		print('PASSED.')
-	elseif answer == 'no' or answer == 'n':
+	elif answer == 'no' or answer == 'n':
 		print('Are you running this in Windows? (\'yes\' or \'no\')')
 		answer = get_line()
 		print( '\n' )
 		if answer == 'yes' or answer == 'y':
 			print('Let\'s go ahead and blame Windows then.' )
 			print('FAILED.')
-		elseif answer == 'no' or answer == 'n':
+		elif answer == 'no' or answer == 'n':
 			print('Well that\'s a bummer.' )
 			print( 'FAILED.')
 		else:

@@ -1,4 +1,4 @@
-# EOPLE
+# eople
 
 ## Introduction
 
@@ -13,15 +13,88 @@ Eople is a concurrency oriented programming language designed to make life easie
 * Unsurprising syntax
 
 ## Installing
+Currently, building eople on Linux and Mac OS X is supported. Windows will likely also work, but no guarantees.
+
+#### Dependencies
+* cmake (>=2.6)
+* g++ (>=4.7) or clang (>=3.3)
+* brew (Mac)
 
 ### Linux
+```bash
+sudo apt-get install cmake
+git clone https://github.com/FBMachine/eople.git
+cd eople && mkdir build && cd build
+cmake ..
+sudo make install -j8
+cd ../examples
+eople test_suite.eop Test::main
+```
 
-#### Requirements
-* cmake (2.6 or greater)
-* g++ (preferably 4.8 or greater)
+### Mac OS X
+```bash
+brew install cmake
+git clone https://github.com/FBMachine/eople.git
+cd eople && mkdir build && cd build
+cmake ..
+sudo make install -j8
+cd ../examples
+eople test_suite.eop Test::main
+```
 
+## Hello World
+Open up your favorite editor, and let's start with something simple. This should look unsurprising to you if you have experience with a language like python, lua, or ruby.
 
-Enter the eople/build directory, and run `cmake ../`, followed by `sudo make install`. Run `eople`.
+#### hello.eop
+```
+def main():
+    print("Hello, World!")
+end
+```
+
+To run this example:
+```
+eople hello.eop
+```
+
+For verbose output from the eople runtime, run with -v:
+```
+eople -v hello.eop
+```
+
+Let's take a look at creating a simple class.
+
+```
+class BeanCounter():
+    count = 0
+
+    def AddBeans(beans):
+        count = count + beans
+    end
+
+    def GetCount():
+        return count
+    end
+end
+
+def main():
+    counter = BeanCounter()
+
+    for i in 0 to 100:
+        counter->AddBeans(1)
+    end
+
+    beans = counter->GetCount()
+
+    when beans:
+        print("Collected " + to_string(beans) + " beans.")
+    end
+end
+```
+
+This again probably looks familiar to you, except for one keyword: __when__. The result of calling `counter->GetCount()` was not a value, but instead a promise. That counter object you created was actually an extremely lightweight asynchronous process. All class instances in eople are actually actors, which communicate asynchronously with each other. The "counter->GetCount()" expression is a message being passed to the counter object. Instead of returning the result of its computation immediately, it returns a promise of a future result being computed in the `counter` process.
+
+Promises in Eople behave sort of like booleans. Except, you don't evaluate them at a static moment in time, since their values are set to true in a separate process running in parallel to the current process. Instead of thinking about IF a promise result is ready, you need to start thinking temporally, in terms of WHEN the result is ready. In other languages, this type of pattern is usually implemented with callbacks.
 
 
 ## Using the Eople Virtual Environment (E.V.E.)

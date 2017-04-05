@@ -24,7 +24,7 @@ enum Token
   TOK_END,         // end (scoping)
   TOK_IF,          // if (control flow)
   TOK_ELSE,        // else (control flow)
-  TOK_ELSEIF,      // elseif (control flow)
+  TOK_ELSEIF,      // elif (control flow)
   TOK_FOR,         // for (control flow)
   TOK_IN,          // for x in [] (control flow)
   TOK_TO,          // for x in 0 to 100 (control flow)

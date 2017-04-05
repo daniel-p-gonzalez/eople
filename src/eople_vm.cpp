@@ -1,4 +1,4 @@
-#include "eople.h"
+#include "eople_exec_env.h"
 #include "eople_core.h"
 #include "eople_opcodes.h"
 #include "eople_binop.h"
@@ -6,6 +6,7 @@
 #include "eople_stdlib.h"
 #include "eople_vm.h"
 
+#include <iostream>
 #include <stdio.h>
 #include <vector>
 #include <map>
@@ -202,7 +203,8 @@ void CoreMain( VirtualMachine* vm, u32 id )
           }
           vm->message_waiting_event.wait(lock);
           // If we get woken by the notify_all() above, it's time to go.
-          if( vm->idle_count == core_count  && vm->ready_to_exit.load() != 0 )
+          if( vm->message_count < (core_count - vm->idle_count) &&
+              vm->idle_count == core_count  && vm->ready_to_exit.load() != 0 )
           {
             return;
           }
@@ -225,6 +227,7 @@ VirtualMachine::VirtualMachine()
   : idle_count(0), message_count(0), process_count(0), process_list(nullptr), ready_to_exit(0)
 {
   core_count = Max<u32>( 2, std::thread::hardware_concurrency() );
+  Eople::Log::Debug("vm> Initializing with %d cores.\n", core_count);
   queue_locks = std::unique_ptr<std::atomic<int>[]>(new std::atomic<int>[core_count]);
 
   for( u32 i = 0; i < core_count; ++i )
@@ -239,10 +242,19 @@ void VirtualMachine::Shutdown()
   ready_to_exit.store(1);
   message_waiting_event.notify_all();
 
+  int mc = message_count;
+  Eople::Log::Debug("vm> Recieved shutdown signal. Waiting to deliver %d messages...\n", mc);
   for( u32 i = 0; i < core_count; ++i )
   {
     cores[i].join();
   }
+
+  mc = message_count;
+  if( mc > 0 )
+  {
+    Eople::Log::Error("vm> Left %d message undelivered.\n", mc);
+  }
+  Eople::Log::Debug("vm> Shutdown complete.\n");
 }
 
 VirtualMachine::~VirtualMachine()
@@ -479,8 +491,8 @@ void VirtualMachine::ExecuteProcessMessage( CallData call_data )
     // notify caller that the promise is ready
     if( call_data.promise )
     {
-      call_data.promise->is_ready = true;
       call_data.promise->value = *process_ref->stack_base;
+      call_data.promise->is_ready = true;
       SendMessage( CallData( nullptr, call_data.promise->owner, nullptr, call_data.promise ) );
       call_data.promise = nullptr;
     }

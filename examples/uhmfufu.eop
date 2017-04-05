@@ -1,10 +1,8 @@
-namespace Uhmfufu:
-	def main():
-		uhmfufu = Uhmfufu()
-		eddie   = Eddie()
+def main():
+	uhmfufu = Uhmfufu()
+	eddie   = Eddie()
 
-		uhmfufu->TalkToEddie(eddie)
-	end
+	uhmfufu->TalkToEddie(eddie)
 end
 
 class Uhmfufu():
@@ -17,11 +15,11 @@ class Uhmfufu():
 			print("Uhmfufu: Eddie, what have you done for me lately?")
 			later = after(1000)
 			when later: eddie->ReplyTo(this) end
-		elseif current_line == 2:
+		elif current_line == 2:
 			print("Uhmfufu: Half!")
 			later = after(1000)
 			when later: this->ReplyTo(eddie) end
-		elseif current_line == 3:
+		elif current_line == 3:
 			print("Uhmfufu: Give me half, Eddie!")
 		end
 	end
@@ -29,8 +27,11 @@ class Uhmfufu():
 	def TalkToEddie(eddie):
 		print("Uhmfufu: Eddie!")
 		later = after(1000)
+		even_later = after(2000)
 		when later:
 			print("Uhmfufu: Eddie! I want to talk to you!")
+		end
+		when even_later:
 			eddie->ReplyTo(this)
 		end
 	end
@@ -46,11 +47,11 @@ class Eddie():
 			print("Eddie: What's you're problem, baby?")
 			later = after(1000)
 			when later: uhmfufu->ReplyTo(this) end
-		elseif current_line == 2:
+		elif current_line == 2:
 			print("Eddie: I want you to be happy.")
 			later = after(1000)
 			when later: this->ReplyTo(uhmfufu) end
-		elseif current_line == 3:
+		elif current_line == 3:
 			print("Eddie: Well, what you want?")
 			later = after(1000)
 			when later: uhmfufu->ReplyTo(this) end

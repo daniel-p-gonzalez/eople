@@ -8,7 +8,7 @@ namespace Eople
 {
 
 #define KEYWORD_LIST "namespace", "struct", "def", "class", "end", \
-                     "if", "else", "elseif", "for", "in", "to", "by", "while", "when", "whenever", \
+                     "if", "else", "elif", "for", "in", "to", "by", "while", "when", "whenever", \
                      "return", "break", "private", "const", "true", "false", "and", "or", \
                      "not"
 
