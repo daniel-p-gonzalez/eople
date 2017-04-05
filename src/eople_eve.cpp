@@ -27,6 +27,7 @@ static void Eve( int argc, char* argv[] )
       Eople::Log::Print("eople> ");
 
       std::string command;
+      std::string line;
       std::getline(std::cin, command);
 
       if( command == "exit()" || command == "quit()" )
@@ -143,8 +144,11 @@ static void Eve( int argc, char* argv[] )
     }
     else if( argc == 3 )
     {
+      std::cout << argv[1] << std::endl;
+      std::cout << argv[2] << std::endl;
       ee.ImportModuleFromFile( argv[1] );
       ee.ExecuteFunction( argv[2], false );
+      ee.Shutdown();
     }
   }
   catch(const char* s)
@@ -155,8 +159,7 @@ static void Eve( int argc, char* argv[] )
 
 int main(int argc, char* argv[])
 {
-  std::thread eve_thread( Eve, argc, argv );
-  eve_thread.join();
+  Eve(argc, argv);
 
   return 0;
 }

@@ -156,7 +156,10 @@ bool ExecutionEnvironment::ImportModuleFromFile( std::string file_name )
     return false;
   }
 
-  const char* file_no_path = std::strrchr( file_name.c_str(), '/' ) + 1;
+  const char* file_no_path = file_name.c_str();
+  const char* last_slash = std::strrchr(file_no_path, '/');
+  if( last_slash )
+    file_no_path = last_slash + 1;
 
   Log::Print("eve> Importing module '%s'.\n", file_no_path);
 
