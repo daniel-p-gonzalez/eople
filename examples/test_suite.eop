@@ -91,9 +91,11 @@ def RingTest():
 	// note that all other language benchmarks for this test disable multi-core first,
 	//   so it's not directly comparable unless Eople is run constrained to 1 core as well...
 	print("Running thread-ring benchmark with n=5,000,000")
-	ring_test(5000000)
+//	ring_test(1000)
+	ring_test(500000)
 end
 
+// following algorithm from https://benchmarksgame.alioth.debian.org/u64q/threadring-description.html#threadring
 def ring_test(n):
 	start_time = get_time()
 	first = Link(1, start_time)
@@ -106,7 +108,7 @@ def ring_test(n):
 	end
 
 	prev->SetNext(first)
-	print("Starting test.")
+	print("Starting thread-ring test.")
 	first->ProcessToken(n)
 end
 
@@ -122,8 +124,9 @@ class Link(id, start_time):
 			token = token - 1
 			next->ProcessToken(token)
 		else:
-			print( "Ring benchmark: Time to complete: " + to_string(get_time() - start_time) )
+//          this should == 498 when run with ring_test(1000)
 //			print("Finished ring test with id == " + id.to_string())
+			print( "Ring benchmark: Time to complete: " + to_string(get_time() - start_time) )
 		end
 	end
 end
