@@ -14,24 +14,19 @@ Eople is a concurrency oriented programming language designed to make life easie
 
 ## Installing
 
-### Windows
-
-Windows binaries are included in the Eople/Bin directory. Project solutions can be generated using cmake (see Linux instructions).
-
 ### Linux
 
 #### Requirements
 * cmake (2.6 or greater)
-* libgtk2-dev (2.6 or greater)
 * g++ (preferably 4.8 or greater)
 
 
-Enter the Eople/Build directory, and run `cmake ../`, followed by `sudo make install`. Run `eople`.
+Enter the eople/build directory, and run `cmake ../`, followed by `sudo make install`. Run `eople`.
 
 
 ## Using the Eople Virtual Environment (E.V.E.)
 
-In order to follow along, fire up the eople executable found in the Eople/Bin folder. This serves as the compiler, runtime, and can function as a REPL.
+In order to follow along, fire up the eople executable. This serves as the compiler, runtime, and can function as a REPL.
 
 Typing help() will give you a look at some built in commands:
 ```
@@ -219,7 +214,7 @@ Keep in mind that Eople is a very young project (started at the end of 2013), an
 
 At this point, you should be feeling brave enough to take a look at the example code included in the distribution. To run the examples, you must first import them into the virtual environment:
 ```
-import(../Examples/uhmfufu.eop)
+import(../examples/uhmfufu.eop)
 // View imported functions. In the future, externally visible functions must be within a namespace.
 //   Until that feature is implemented, there is global visibility.
 imported()
