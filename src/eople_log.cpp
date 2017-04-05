@@ -1,7 +1,7 @@
 #include "core.h"
 #include "eople_log.h"
-#include "eople_text_buffer.h"
 
+#include <iostream>
 #include <mutex>
 
 #include <cstdio>
@@ -16,14 +16,8 @@ namespace Log
 static std::vector<std::string> s_context_stack;
 static std::vector<FILE*> s_file_stack;
 static std::string s_context;
-static std::weak_ptr<TextBuffer> s_text_buffer;
 static bool s_dirty = true;
 static bool s_print_errors = true;
-
-void SetTextBuffer( std::weak_ptr<TextBuffer> text_buffer )
-{
-  s_text_buffer = text_buffer;
-}
 
 bool PushFile( std::string file_name )
 {
@@ -80,12 +74,7 @@ void Print( const char* format, va_list args )
     fwrite( buffer, 1, s_context.size() + count, s_file_stack.back() );
   }
 
-  std::shared_ptr<TextBuffer> text_buffer = s_text_buffer.lock();
-  // output to console
-  if( text_buffer )
-  {
-    text_buffer->Append( buffer );
-  }
+  std::cout << buffer;
 }
 
 void Print( const char* format, ... )

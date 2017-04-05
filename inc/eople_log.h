@@ -6,8 +6,6 @@
 namespace Eople
 {
 
-class TextBuffer;
-
 namespace Log
 {
   void Print( const char* format, ... );
@@ -18,7 +16,6 @@ namespace Log
   void ClearContext();
   bool PushFile( std::string file_name );
   void PopFile();
-  void SetTextBuffer( std::weak_ptr<TextBuffer> text_buffer );
 
   struct AutoContext
   {

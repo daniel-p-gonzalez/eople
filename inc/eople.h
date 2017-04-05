@@ -22,12 +22,6 @@ public:
   bool ExecuteFunction( std::string entry_function, bool spawn_in_new_process );
   void ListImportedFunctions();
 
-  // TODO: This is highly questionable... need a clearer relationship between executing code and terminal output
-  void SetCurrentTextBuffer( std::weak_ptr<TextBuffer> text_buffer )
-  {
-    m_vm.SetCurrentTextBuffer(text_buffer);
-  }
-
 private:
   void ImportBuiltins();
 

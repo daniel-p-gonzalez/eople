@@ -1,8 +1,8 @@
 #include "eople_core.h"
 #include "eople_stdlib.h"
 #include "eople_vm.h"
-#include "eople_text_buffer.h"
 
+#include <iostream>
 #include <cstdio>
 #include <thread>
 #include <sstream>
@@ -54,12 +54,7 @@ bool GetLine( process_t process_ref )
   string_t &new_string = process_ref->ccall_return_val->string_ref;
   new_string = new std::string();
 
-  std::shared_ptr<TextBuffer> text_buffer = process_ref->vm->GetCurrentTextBuffer().lock();
-  if( text_buffer )
-  {
-    *new_string = text_buffer->GetInput();
-  }
-
+  std::cin >> *new_string;
   //u8 next_char = (u8)getchar();
   //while( next_char != '\n' )
   //{

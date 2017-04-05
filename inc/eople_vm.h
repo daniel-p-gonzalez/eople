@@ -139,18 +139,6 @@ private:
 
   VirtualMachine(const VirtualMachine&);
   VirtualMachine& operator=(const VirtualMachine&);  
-
-  // this is all very questionable
-  std::weak_ptr<TextBuffer> context_buffer;
-public:
-  void SetCurrentTextBuffer(std::weak_ptr<TextBuffer> text_buffer)
-  {
-    context_buffer = text_buffer;
-  }
-  std::weak_ptr<TextBuffer> GetCurrentTextBuffer()
-  {
-    return context_buffer;
-  }
 };
 
 }
