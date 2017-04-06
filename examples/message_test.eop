@@ -1,0 +1,20 @@
+def main():
+    print("Messaging process 1,000,000 times.")
+    process = SimpleClass()
+    start_time = get_time()
+    for i in 0 to 1000000:
+        process->Message(1)
+    end
+
+    delta = get_time() - start_time
+    print("Total time sending 1,000,000 messages: " + to_string(delta*1000.0) + " milliseconds." )
+    print("Average message send time: " + to_string(delta) + " microseconds." )
+end
+
+class SimpleClass():
+    counter = 0
+
+    def Message(delta):
+        counter = counter + delta
+    end
+end

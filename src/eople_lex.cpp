@@ -212,7 +212,7 @@ Token Lexer::NextToken()
     return(m_token = TOK_STRING);
   }
 
-  if( *m_char == '/' && Peek('/') )
+  if( *m_char == '#' )
   {
     while( m_char < m_end && *m_char != '\n' && *m_char != '\r' )
     {

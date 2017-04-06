@@ -61,9 +61,10 @@ bool Ready( process_t process_ref )
   {
     while( child_promise->value.object_type == (u8)ValueType::NIL || child_promise->value.object_type == (u8)ValueType::PROMISE )
     {
+      // TODO: promise types are not always propagating correctly
       if( child_promise->value.object_type == (u8)ValueType::NIL )
       {
-        is_ready = false;
+        // is_ready = false;
         break;
       }
       child_promise = child_promise->value.promise;
