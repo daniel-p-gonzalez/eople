@@ -1,0 +1,25 @@
+class BeanCounter():
+    count = 0
+
+    def AddBeans(beans):
+        count = count + beans
+    end
+
+    def GetCount():
+        return count
+    end
+end
+
+def main():
+    counter = BeanCounter()
+
+    for i in 0 to 100:
+        counter->AddBeans(1)
+    end
+
+    beans = counter->GetCount()
+
+    when beans:
+        print("Collected " + to_string(beans) + " beans.")
+    end
+end

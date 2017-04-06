@@ -56,14 +56,33 @@ To run this example:
 ```
 eople hello.eop
 ```
+```
+Hello, World!
+```
 
 For verbose output from the eople runtime, run with -v:
 ```
 eople -v hello.eop
 ```
+```
+vm> Initializing with 8 cores.
+eve> Importing module 'hello.eop'.
+eve> Total time for import: 0.123000 ms.
+eve> Import of 'hello.eop' succeeded. 0 Errors.
+eve> Spawning process 'main'.
+eve> Total time for code generation: 0.098000 ms.
+eve> Code generation of main succeeded. 0 Errors.
+
+Hello, World!
+
+eve> Execution completed in 0.000030 seconds.
+vm> Recieved shutdown signal. Waiting to deliver 0 messages...
+vm> Shutdown complete.
+```
 
 Let's take a look at creating a simple class.
 
+#### bean_counter.eop
 ```
 class BeanCounter():
     count = 0
@@ -90,6 +109,13 @@ def main():
         print("Collected " + to_string(beans) + " beans.")
     end
 end
+```
+
+```
+eople bean_counter.eop
+```
+```
+Collected 100 beans.
 ```
 
 This again probably looks familiar to you, except for one keyword: __when__. The result returned from `counter->GetCount()` was not a value, but instead a promise. That counter object you created was actually an extremely lightweight asynchronous process. All class instances in eople communicate asynchronously with each other. The "counter->GetCount()" expression is a message being passed to the counter object. Instead of returning the result of its computation immediately, it returns a promise of a future result being computed in the `counter` process.
