@@ -477,6 +477,9 @@ void CopyMessageArgs( const Function* function, process_t process_ref, Object* d
     }
     else // TODO: make sure this all makes sense
     {
+      // this seems very wrong. should be incrementing ip,
+      //  and the (i+2) guard logic is wrong (test with parameter_count == 5)
+
       // copy args to stack
       for( size_t i = 0; (i+2) < parameter_count; )
       {

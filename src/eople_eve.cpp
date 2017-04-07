@@ -34,8 +34,17 @@ static int Eve( std::string filename, std::string entry_function, bool verbose )
       Eople::Log::Print("eople> ");
 
       std::string command;
-      std::string line;
       std::getline(std::cin, command);
+      if( !command.empty() && command.back() == ':' )
+      {
+        std::string line;
+        std::getline(std::cin, line);
+        while( !line.empty() )
+        {
+          command += line + '\n';
+          std::getline(std::cin, line);
+        }
+      }
 
       if( command == "exit()" || command == "quit()" )
       {
