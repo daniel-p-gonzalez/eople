@@ -26,12 +26,12 @@
 namespace Eople
 {
 
-static const char* s_calming_quotes[] = { "When you rest, you are a king surveying your estate. Look at the woodland, the peacocks on the lawn.\n"
-                                          "Be the king of your own calm kingdom.",
-                                          "When you're feeling under pressure, do something different. Roll up your sleeves, or eat an orange.",
-                                          "Be on the look out for things that make you laugh. If you see nothing worth laughing at,\npretend you see it, then laugh.",
-                                          "Whenever you're in a tight spot, try to imagine yourself marooned on a beautiful desert island.",
-                                          "Add a drop of lavender to your bath, and soon, you'll soak yourself calm!" };
+// static const char* s_calming_quotes[] = { "When you rest, you are a king surveying your estate. Look at the woodland, the peacocks on the lawn.\n"
+//                                           "Be the king of your own calm kingdom.",
+//                                           "When you're feeling under pressure, do something different. Roll up your sleeves, or eat an orange.",
+//                                           "Be on the look out for things that make you laugh. If you see nothing worth laughing at,\npretend you see it, then laugh.",
+//                                           "Whenever you're in a tight spot, try to imagine yourself marooned on a beautiful desert island.",
+//                                           "Add a drop of lavender to your bath, and soon, you'll soak yourself calm!" };
 
 bool loadFile( std::string file_name, const char* &buffer, const char* &buffer_end )
 {
@@ -158,7 +158,7 @@ bool ExecutionEnvironment::ImportModuleFromFile( std::string file_name )
   }
 
   const char* file_no_path = file_name.c_str();
-  const char* last_slash = nullptr;//std::strrchr(file_no_path, '/');
+  const char* last_slash = std::strrchr(file_no_path, '/');
   if( last_slash )
     file_no_path = last_slash + 1;
 
@@ -168,10 +168,14 @@ bool ExecutionEnvironment::ImportModuleFromFile( std::string file_name )
 
   typedef HighResClock clock;
   auto start_time = clock::now();
+  // initialize lexer with input buffer
   Lexer lexer( buffer, buffer_end );
+  // create new module for file
   m_ast.modules.push_back(NodeBuilder::GetModuleNode(file_no_path));
   auto module = m_ast.modules.back().get();
+  // auto import builtins into module
   module->imported.push_back(m_builtins.raw_module);
+  // parse input / transform into ast, and store in module
   m_parser.ParseModule(lexer, module);
 
   delete[] buffer;
@@ -193,12 +197,14 @@ bool ExecutionEnvironment::ImportModuleFromFile( std::string file_name )
   if( error_count )
   {
     Log::Error("\n");
-    Log::Error("eve> I'm sorry: import of '%s' has failed with %d errors.\n", file_name.c_str(), error_count);
-    Log::Error("\n");
-    Log::Error("eve> As Manny would say:\n");
-    srand( (u32)time(nullptr) );
-    size_t quote_count = sizeof(s_calming_quotes)/sizeof(s_calming_quotes[0]);
-    Log::Error("%s\n", s_calming_quotes[rand()%quote_count]);
+    Log::Error("eve> Import of '%s' failed with %d errors.\n", file_name.c_str(), error_count);
+    // How many people would get a Black Books reference?
+    // Log::Error("eve> I'm sorry: import of '%s' has failed with %d errors.\n", file_name.c_str(), error_count);
+    // Log::Error("\n");
+    // Log::Error("eve> As Manny would say:\n");
+    // srand( (u32)time(nullptr) );
+    // size_t quote_count = sizeof(s_calming_quotes)/sizeof(s_calming_quotes[0]);
+    // Log::Error("%s\n", s_calming_quotes[rand()%quote_count]);
     Log::Error("\n");
   }
   else
@@ -273,6 +279,8 @@ bool ExecutionEnvironment::ExecuteFunction( std::string function_name, bool spaw
   Function* function = nullptr;
   u32 error_count = 0;
 
+  // check if we've already run code gen for this function
+  // TODO: don't do linear search through all modules/functions
   for( auto &module : m_loaded_modules )
   {
     for( auto &func : module->functions )
@@ -286,11 +294,13 @@ bool ExecutionEnvironment::ExecuteFunction( std::string function_name, bool spaw
     }
   }
 
+  // didn't find compiled function, run code gen
   if( !function )
   {
     auto module = m_ast.GetModuleForFunction( function_name );
     if( module )
     {
+      // walk over ast starting from entry point, and propagate types
       m_type_infer.InferTypes( module, function_name );
 //      m_type_infer.InferModuleTypes(module);
       error_count = m_type_infer.GetErrorCount();
@@ -303,14 +313,17 @@ bool ExecutionEnvironment::ExecuteFunction( std::string function_name, bool spaw
 
     if( !error_count )
     {
+      // prepare byte code module for code gen
       m_loaded_modules.push_back(m_code_gen.InitModule(module));
       auto &executable_module = m_loaded_modules.back();
       executable_module->imported.push_back(m_builtin_module.get());
+      // transform ast to byte code
       m_code_gen.GenModule(executable_module.get());
       error_count = m_code_gen.GetErrorCount();
 
       if( !error_count )
       {
+        // function entry function in generated byte code module
         for( size_t i = 0; i < executable_module->functions.size(); ++i )
         {
           if( executable_module->functions[i]->name == function_name )
@@ -336,12 +349,14 @@ bool ExecutionEnvironment::ExecuteFunction( std::string function_name, bool spaw
     if( error_count )
     {
       Log::Error("\n");
-      Log::Error("eve> I'm sorry: code generation of '%s' has failed with %d errors.\n", function_name.c_str(), error_count);
-      Log::Error("\n");
-      Log::Error("eve> As Manny would say:\n");
-      srand( (u32)time(nullptr) );
-      size_t quote_count = sizeof(s_calming_quotes)/sizeof(s_calming_quotes[0]);
-      Log::Error("%s\n", s_calming_quotes[rand()%quote_count]);
+      Log::Error("eve> Code generation for '%s' failed with %d errors.\n", function_name.c_str(), error_count);
+      // How many people would get a Black Books reference?
+      // Log::Error("eve> I'm sorry: code generation of '%s' has failed with %d errors.\n", function_name.c_str(), error_count);
+      // Log::Error("\n");
+      // Log::Error("eve> As Manny would say:\n");
+      // srand( (u32)time(nullptr) );
+      // size_t quote_count = sizeof(s_calming_quotes)/sizeof(s_calming_quotes[0]);
+      // Log::Error("%s\n", s_calming_quotes[rand()%quote_count]);
       Log::Error("\n");
     }
 
@@ -364,10 +379,12 @@ bool ExecutionEnvironment::ExecuteFunction( std::string function_name, bool spaw
     auto start_time = clock::now();
     if( spawn_in_new_process )
     {
+      // create new process to execute entry function
       m_vm.SendMessage( CallData(function, m_vm.GenerateUniqueProcess()) );
     }
     else
     {
+      // execute entry function in the current process
       m_vm.ExecuteFunction( CallData(function, m_main_process) );
     }
     auto total_ms = std::chrono::duration_cast<std::chrono::microseconds>(clock::now() - start_time).count();

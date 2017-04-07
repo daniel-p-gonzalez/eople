@@ -139,6 +139,7 @@ private:
   friend GetTypeDispatcher;
 };
 
+// allows walking of ast nodes with concrete types when all we have are base class pointers
 class GenExpressionDispatcher : public ASTDispatcher<GenExpressionDispatcher>
 {
 public:

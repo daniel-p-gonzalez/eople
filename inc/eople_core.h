@@ -345,6 +345,7 @@ enum class Opcode
 
 typedef bool (*InstructionImpl) ( process_t process_ref );
 InstructionImpl OpcodeToInstruction( Opcode opcode );
+std::string InstructionToString( InstructionImpl instruction );
 
 struct ByteCode
 {
