@@ -345,6 +345,7 @@ enum class Opcode
 
 typedef bool (*InstructionImpl) ( process_t process_ref );
 InstructionImpl OpcodeToInstruction( Opcode opcode );
+std::string InstructionToString( InstructionImpl instruction );
 
 struct ByteCode
 {
@@ -392,16 +393,19 @@ struct Object
 
   void SetInt( int_t val )
   {
+    object_type = (u8)ValueType::INT;
     int_val = val;
   }
 
   void SetFloat( float_t val )
   {
+    object_type = (u8)ValueType::FLOAT;
     float_val = val;
   }
 
   void SetBool( bool_t val )
   {
+    object_type = (u8)ValueType::BOOL;
     bool_val = val;
   }
 
@@ -428,6 +432,7 @@ struct Object
 
   void SetPromise( promise_t in_promise )
   {
+    object_type = (u8)ValueType::PROMISE;
     promise = in_promise;
   }
 
@@ -528,7 +533,7 @@ struct Object
 
 struct Promise
 {
-  Promise( process_t in_owner ) : owner(in_owner), is_ready(false), is_timer(false) {}
+  Promise( process_t in_owner ) : owner(in_owner), value(), is_ready(false), is_timer(false) {}
 
   process_t owner;
   Object   value;

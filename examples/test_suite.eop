@@ -1,532 +1,532 @@
-//
-// This is a small collection of unit tests.
-//
+#
+# This is a small collection of unit tests.
+#
 namespace Test:
-	def main():
-		run_all_tests()
-	end
+    def main():
+        run_all_tests()
+    end
 end
 
 def collection_test():
-	x = array(<string>)
-	x.push("Hello")
-	x.push("world.")
-	x.push("How")
-	x.push("are")
-	x.push("you?")
+    x = array(<string>)
+    x.push("Hello")
+    x.push("world.")
+    x.push("How")
+    x.push("are")
+    x.push("you?")
 
-	print("\nIterating array.\n")
+    print("\nIterating array.\n")
 
-	for element in x:
-		print(element)
-	end
+    for element in x:
+        print(element)
+    end
 
-	print("\nPopping all elements off top of array.\n")
+    print("\nPopping all elements off top of array.\n")
 
-	val = x.top(); x.pop()
-	print(val)
-	val = x.top(); x.pop()
-	print(val)
-	val = x.top(); x.pop()
-	print(val)
-	val = x.top(); x.pop()
-	print(val)
-	val = x.top(); x.pop()
-	print(val)
+    val = x.top(); x.pop()
+    print(val)
+    val = x.top(); x.pop()
+    print(val)
+    val = x.top(); x.pop()
+    print(val)
+    val = x.top(); x.pop()
+    print(val)
+    val = x.top(); x.pop()
+    print(val)
 
-	print("\n")
+    print("\n")
 
-	//	y = [2,3,5,7,11]
-	// z = ["apples":100, "oranges":235, "plums":18]
-	// w = table(<int>)
+    #    y = [2,3,5,7,11]
+    # z = ["apples":100, "oranges":235, "plums":18]
+    # w = table(<int>)
 end
 
 def run_all_tests():
-	message_stress_test()
-	area_test()
-	euler_one()
-	error_count = for_loop_test()
-	bit_test()
-	RingTest()
-	collection_test()
-	string_stress_test()
-	ClassTester()
-	thread_stress_test()
+    message_stress_test()
+    area_test()
+    euler_one()
+    error_count = for_loop_test()
+    bit_test()
+    RingTest()
+    collection_test()
+    string_stress_test()
+    ClassTester()
+    thread_stress_test()
 
-	error_count = error_count + namespace_test()
-	error_count = error_count + stdin_test()
-	error_count = error_count + unicode_test()
-	error_count = error_count + simple_math_test()
-	error_count = error_count + generics_test()
+    error_count = error_count + namespace_test()
+    error_count = error_count + stdin_test()
+    error_count = error_count + unicode_test()
+    error_count = error_count + simple_math_test()
+    error_count = error_count + generics_test()
 
-	if error_count == 0:
-		print('Eople has a clean bill of health.')
-		print('PASSED with 0 errors.')
-	else:
-		print('Better luck next time.')
-		if error_count == 1:
-			print('FAILED with 1 error.')
-		else:
-			print('FAILED with ' + error_count.to_string() + ' errors.')
-		end
-	end
-	print( '\n' )
+    if error_count == 0:
+        print('Eople has a clean bill of health.')
+        print('PASSED with 0 errors.')
+    else:
+        print('Better luck next time.')
+        if error_count == 1:
+            print('FAILED with 1 error.')
+        else:
+            print('FAILED with ' + error_count.to_string() + ' errors.')
+        end
+    end
+    print( '\n' )
 end
 
 def bit_test():
-	x1 = 1 << 0
-	// print("1 << 0 == " + x1.to_string())
-	x2 = x1 << 1
-	// print("1 << 1 == " + x2.to_string())
-	x32 = x2 << 4
-	// print("2 << 4 == " + x32.to_string())
-	y = 63
-	// print("63 & 32 == " + to_string(y & x32))
-	// print("63 & 2 == " + to_string(y & x2))
-	// print("63 & (32|2) == " + to_string(y & (x32|x2)))
-	print("Bitwise operator test complete.")
+    x1 = 1 << 0
+    # print("1 << 0 == " + x1.to_string())
+    x2 = x1 << 1
+    # print("1 << 1 == " + x2.to_string())
+    x32 = x2 << 4
+    # print("2 << 4 == " + x32.to_string())
+    y = 63
+    # print("63 & 32 == " + to_string(y & x32))
+    # print("63 & 2 == " + to_string(y & x2))
+    # print("63 & (32|2) == " + to_string(y & (x32|x2)))
+    print("Bitwise operator test complete.")
 end
 
 def RingTest():
-	// note that all other language benchmarks for this test disable multi-core first,
-	//   so it's not directly comparable unless Eople is run constrained to 1 core as well...
-	print("Running thread-ring benchmark with n=5,000,000")
-//	ring_test(1000)
-	ring_test(5000000)
+    # note that all other language benchmarks for this test disable multi-core first,
+    #   so it's not directly comparable unless Eople is run constrained to 1 core as well...
+    print("Running thread-ring benchmark with n=5,000,000")
+#    ring_test(1000)
+    ring_test(5000000)
 end
 
-// following algorithm from https://benchmarksgame.alioth.debian.org/u64q/threadring-description.html#threadring
+# following algorithm from https:#benchmarksgame.alioth.debian.org/u64q/threadring-description.html#threadring
 def ring_test(n):
-	start_time = get_time()
-	first = Link(1, start_time)
-	prev = first
+    start_time = get_time()
+    first = Link(1, start_time)
+    prev = first
 
-	for i in 2 to 504:
-		next = Link(i, start_time)
-		prev->SetNext(next)
-		prev = next
-	end
+    for i in 2 to 504:
+        next = Link(i, start_time)
+        prev->SetNext(next)
+        prev = next
+    end
 
-	prev->SetNext(first)
-	print("Starting thread-ring test.")
-	first->ProcessToken(n)
+    prev->SetNext(first)
+    print("Starting thread-ring test.")
+    first->ProcessToken(n)
 end
 
 class Link(id, start_time):
-	next = this
+    next = this
 
-	def SetNext(next_link):
-		next = next_link
-	end
+    def SetNext(next_link):
+        next = next_link
+    end
 
-	def ProcessToken(token):
-		if token > 0:
-			token = token - 1
-			next->ProcessToken(token)
-		else:
-//          this should == 498 when run with ring_test(1000)
-//			print("Finished ring test with id == " + id.to_string())
-			print( "Ring benchmark: Time to complete: " + to_string(get_time() - start_time) )
-		end
-	end
+    def ProcessToken(token):
+        if token > 0:
+            token = token - 1
+            next->ProcessToken(token)
+        else:
+#          this should == 498 when run with ring_test(1000)
+#            print("Finished ring test with id == " + id.to_string())
+            print( "Ring benchmark: Time to complete: " + to_string(get_time() - start_time) )
+        end
+    end
 end
 
 class Area():
-	def Rectangle(width, height):
-		return width*height
-	end
+    def Rectangle(width, height):
+        return width*height
+    end
 
-	def Circle(radius):
-		return 3.14159 * radius * radius
-	end
+    def Circle(radius):
+        return 3.14159 * radius * radius
+    end
 end
 
 class area_test():
-	Pid = Area()
+    Pid = Area()
 
-	rectangle_area = Pid->Rectangle(6, 10)
-	circle_area    = Pid->Circle(23.0)
+    rectangle_area = Pid->Rectangle(6, 10)
+    circle_area    = Pid->Circle(23.0)
 
-	when rectangle_area and circle_area:
-		r_area = rectangle_area.get_value()
-		c_area = circle_area.get_value()
-		if r_area == 60 and c_area > 1661.89 and c_area < 1661.91:
-			print("Area test passed.")
-		else:
-			print("Area test FAILED.")
-		end
-	end
+    when rectangle_area and circle_area:
+        r_area = rectangle_area.get_value()
+        c_area = circle_area.get_value()
+        if r_area == 60 and c_area > 1661.89 and c_area < 1661.91:
+            print("Area test passed.")
+        else:
+            print("Area test FAILED.")
+        end
+    end
 end
 
 def thread_stress_test():
-	print("Spawning 1,000,000 threads.")
-	start_time = get_time()
-	for i in 0 to 1000000:
-		thread = EmptyClass()
-	end
+    print("Spawning 1,000,000 threads.")
+    start_time = get_time()
+    for i in 0 to 1000000:
+        thread = EmptyClass()
+    end
 
-	delta = get_time() - start_time // * 1000000.0 / 1000000.0
-	print("Average thread spawn time: " + to_string(delta) + " microseconds." )
+    delta = get_time() - start_time # * 1000000.0 / 1000000.0
+    print("Average thread spawn time: " + to_string(delta) + " microseconds." )
 end
 
 class EmptyClass():
 end
 
 def message_stress_test():
-	print("Messaging thread 1,000,000 times.")
-	thread = MessageClass()
-	start_time = get_time()
-	for i in 0 to 1000000:
-		thread->Message(1)
-	end
+    print("Messaging thread 1,000,000 times.")
+    thread = MessageClass()
+    start_time = get_time()
+    for i in 0 to 1000000:
+        thread->Message(1)
+    end
 
-	delta = get_time() - start_time // * 1000000.0 / 1000000.0
-	print("Average message send time: " + to_string(delta) + " microseconds." )
+    delta = get_time() - start_time # * 1000000.0 / 1000000.0
+    print("Average message send time: " + to_string(delta) + " microseconds." )
 end
 
 def euler_one_looping():
-	start_time = get_time()
-	total = 0
-	for i in 1 to 1000000:
-		if (i % 3) == 0 or (i % 5) == 0:
-			total = total + i
-		end
-	end
-	delta = get_time() - start_time
-//	print("Completed in: " + to_string(delta*1000.0) + " ms." )
-//	print("Result: " + total.to_string())
+    start_time = get_time()
+    total = 0
+    for i in 1 to 1000000:
+        if (i % 3) == 0 or (i % 5) == 0:
+            total = total + i
+        end
+    end
+    delta = get_time() - start_time
+#    print("Completed in: " + to_string(delta*1000.0) + " ms." )
+#    print("Result: " + total.to_string())
 end
 
 def euler_one():
-	summer = EulerOneSummer()
-	for i in 0 to 1000000 by 10000:
-		checker = EulerOneChecker(i, summer)
-		checker->Check()
-	end
+    summer = EulerOneSummer()
+    for i in 0 to 1000000 by 10000:
+        checker = EulerOneChecker(i, summer)
+        checker->Check()
+    end
 end
 
 class EulerOneChecker(first, summer):
-	sum = 0
+    sum = 0
 
-	def Check():
-		last = first + 10000
-		for i in first to last:
-			if (i % 3) == 0 or (i % 5) == 0:
-				sum = sum + i
-			end
-		end
+    def Check():
+        last = first + 10000
+        for i in first to last:
+            if (i % 3) == 0 or (i % 5) == 0:
+                sum = sum + i
+            end
+        end
 
-		summer->Add(sum)
-	end
+        summer->Add(sum)
+    end
 end
 
 class EulerOneSummer():
-	sum = 0
+    sum = 0
 
-	def Add(x):
-		sum = sum + x
-	end
+    def Add(x):
+        sum = sum + x
+    end
 end
 
 class MessageClass():
-	counter = 0
+    counter = 0
 
-	// when counter == 100:
-	// 	print("Finished processing messages.")
-	// end
+    # when counter == 100:
+    #     print("Finished processing messages.")
+    # end
 
-	def Message(delta):
-		counter = counter + delta
-		// x = 0.0
-		// for i in 0 to 100:
-		// 	x = x + 1.0
-		// end
-	end
+    def Message(delta):
+        counter = counter + delta
+        # x = 0.0
+        # for i in 0 to 100:
+        #     x = x + 1.0
+        # end
+    end
 end
 
 class ClassTester():
-	adder = Adder()
-	adder->member()
-	for i in 0 to 8:
-		looper = Looper()
-		looper->do_for(adder)
-	end
+    adder = Adder()
+    adder->member()
+    for i in 0 to 8:
+        looper = Looper()
+        looper->do_for(adder)
+    end
 
-	total = adder->GetTotal()
+    total = adder->GetTotal()
 
-	timer = after(7800)
+    timer = after(7800)
 
-	when timer:
-		print("Class test: Timers are functioning properly.")
-	end
+    when timer:
+        print("Class test: Timers are functioning properly.")
+    end
 
-	when total:
-		print("Class test: Promises being kept as expected.")
-//		print(total.get_value())
-	end
+    when total:
+        print("Class test: Promises being kept as expected.")
+#        print(total.get_value())
+    end
 end
 
 class Adder():
-	total = 0.0
+    total = 0.0
 
-	when total > 19999999.0:
-//		print("In when: " + total.to_string())
-	end
+    when total > 19999999.0:
+#        print("In when: " + total.to_string())
+    end
 
-	whenever total > 39999999.0:
-//		print("In whenever: " + total.to_string())
-	end
+    whenever total > 39999999.0:
+#        print("In whenever: " + total.to_string())
+    end
 
-	def GetTotal():
-		return total
-	end
+    def GetTotal():
+        return total
+    end
 
-	def member():
-		when total >= 20000000.0:
-//			print("In member: " + total.to_string())
-		end
-	end
+    def member():
+        when total >= 20000000.0:
+#            print("In member: " + total.to_string())
+        end
+    end
 
-	def add(x):
-		total = total + x
-	end
+    def add(x):
+        total = total + x
+    end
 
-	def PrintTotal():
-		print(total)
-	end
+    def PrintTotal():
+        print(total)
+    end
 end
 
 class Looper():
-	def do_for(adder):
-		x = 0.0
-		for i in 0 to 20000000:
-			x = x + 1.0
-		end
-		adder->add(x)
-	end
+    def do_for(adder):
+        x = 0.0
+        for i in 0 to 20000000:
+            x = x + 1.0
+        end
+        adder->add(x)
+    end
 end
 
 def namespace_test():
-	print( 'Testing namespaces...')
-	passed = Outer::Inner::inner_def('Outer::Inner::inner_def()') and
-			 Outer::outer_def('Outer::outer_def()')
+    print( 'Testing namespaces...')
+    passed = Outer::Inner::inner_def('Outer::Inner::inner_def()') and
+             Outer::outer_def('Outer::outer_def()')
 
-	error_count = 0
-	if passed:
-		print( 'PASSED.')
-	else:
-		print( 'FAILED.')
-		error_count = 1
-	end
-	print( '\n' )
-	return error_count
+    error_count = 0
+    if passed:
+        print( 'PASSED.')
+    else:
+        print( 'FAILED.')
+        error_count = 1
+    end
+    print( '\n' )
+    return error_count
 end
 
 def same_name(s):
-		matches = s == 'same_name()'
-		if matches == false:
-			print("Got: " + 'same_name() when ' + s + ' was expected.')
-		end
-		return matches
+        matches = s == 'same_name()'
+        if matches == false:
+            print("Got: " + 'same_name() when ' + s + ' was expected.')
+        end
+        return matches
 end
 
 namespace Outer:
-	namespace Inner:
-		def inner_def(s):
-			matches = same_name('Outer::Inner::same_name()')
-			this_matches = s == 'Outer::Inner::inner_def()'
-			if this_matches == false:
-				print("Got: " + 'Outer::Inner::inner_def() when ' + s + ' was expected.')
-			end
-			return matches and this_matches
-		end
+    namespace Inner:
+        def inner_def(s):
+            matches = same_name('Outer::Inner::same_name()')
+            this_matches = s == 'Outer::Inner::inner_def()'
+            if this_matches == false:
+                print("Got: " + 'Outer::Inner::inner_def() when ' + s + ' was expected.')
+            end
+            return matches and this_matches
+        end
 
-		def same_name(s):
-			matches = s == 'Outer::Inner::same_name()'
-			if matches == false:
-				print("Got: " + 'Outer::Inner::same_name() when ' + s + ' was expected.')
-			end
-			return matches
-		end
-	end
+        def same_name(s):
+            matches = s == 'Outer::Inner::same_name()'
+            if matches == false:
+                print("Got: " + 'Outer::Inner::same_name() when ' + s + ' was expected.')
+            end
+            return matches
+        end
+    end
 
-	def outer_def(s):
-		matches = same_name('same_name()')
-		this_matches = s == 'Outer::outer_def()'
-		if this_matches == false:
-			print("Got: " + 'Outer::outer_def() when ' + s + ' was expected.')
-		end
-		return matches and this_matches
-	end
+    def outer_def(s):
+        matches = same_name('same_name()')
+        this_matches = s == 'Outer::outer_def()'
+        if this_matches == false:
+            print("Got: " + 'Outer::outer_def() when ' + s + ' was expected.')
+        end
+        return matches and this_matches
+    end
 end
 
 def string_stress_test():
-	print( 'Testing 100,000 simple string concatenations...')
-	start_time = get_time()
-	x = ''
-	for i in 0 to 100000:
-		x = x + '.'
-	end
+    print( 'Testing 100,000 simple string concatenations...')
+    start_time = get_time()
+    x = ''
+    for i in 0 to 100000:
+        x = x + '.'
+    end
 
-//	print('Generated string:\n' + x)
-	print( 'Completed in ' + to_string(get_time() - start_time) + 's.' )
-	print( '\n' )
+#    print('Generated string:\n' + x)
+    print( 'Completed in ' + to_string(get_time() - start_time) + 's.' )
+    print( '\n' )
 end
 
 def for_loop_test():
-	error_count = 0
-	print( 'Testing simple \'for\' loop with 20,000,000 iterations...')
+    error_count = 0
+    print( 'Testing simple \'for\' loop with 20,000,000 iterations...')
 
-	start_time = get_time()
-	x = 0.0
-	for i in 0 to 20000000:
-		x = x + 1.0
-	end
-	print( 'Completed in ' + to_string(get_time() - start_time) + 's.' )
+    start_time = get_time()
+    x = 0.0
+    for i in 0 to 20000000:
+        x = x + 1.0
+    end
+    print( 'Completed in ' + to_string(get_time() - start_time) + 's.' )
 
-	if x > 20000000.00001 or x < 19999999.99999:
-		print( 'FAILED.')
-		error_count = error_count + 1
-	else:
-		print( 'PASSED.')
-	end
-	print( '\n' )
-	return error_count
+    if x > 20000000.00001 or x < 19999999.99999:
+        print( 'FAILED.')
+        error_count = error_count + 1
+    else:
+        print( 'PASSED.')
+    end
+    print( '\n' )
+    return error_count
 end
 
 def stdin_test():
-	error_count = 0
-	print( 'This is a small test of standard IO. What\'s your name?')
-	line = get_line()
-	print( '\nHello ' + line + '. Does everything look ok so far? (\'yes\' or \'no\')')
-	answer = get_line()
-	print( '\n' )
-	if answer == 'yes' or answer == 'y':
-		print('Great! Thank you for participating.')
-		print('PASSED.')
-	elseif answer == 'no' or answer == 'n':
-		print('Well that\'s unfortunate. Thanks anyway. I\'m sure it wasn\'t your fault.')
-		print( 'FAILED.')
-		error_count = error_count + 1
-	else:
-		print('Either your cat typed that, or this test didn\'t go so well.')
-		print("Got: " + answer)
-		print( 'FAILED.')
-		error_count = error_count + 1
-	end
-	print( '\n' )
-	return error_count
+    error_count = 0
+    print( 'This is a small test of standard IO. What\'s your name?')
+    line = get_line()
+    print( '\nHello ' + line + '. Does everything look ok so far? (\'yes\' or \'no\')')
+    answer = get_line()
+    print( '\n' )
+    if answer == 'yes' or answer == 'y':
+        print('Great! Thank you for participating.')
+        print('PASSED.')
+    elif answer == 'no' or answer == 'n':
+        print('Well that\'s unfortunate. Thanks anyway. I\'m sure it wasn\'t your fault.')
+        print( 'FAILED.')
+        error_count = error_count + 1
+    else:
+        print('Either your cat typed that, or this test didn\'t go so well.')
+        print("Got: " + answer)
+        print( 'FAILED.')
+        error_count = error_count + 1
+    end
+    print( '\n' )
+    return error_count
 end
 
 def unicode_test():
-	error_count = 0
-	// From - http://www.humancomp.org/unichtm/unilang8.htm
-	print( 'Testing unicode output:')
-	print( '外国語の学習と教授' )
-	print( 'Изучение и обучение иностранных языков' )
-	print( '語文教學・语文教学' )
-	print( 'Enseñanza y estudio de idiomas' )
-	print( 'Изучаване и Преподаване на Чужди Езици' )
-	print( 'ქართული ენის შესწავლა და სწავლება' )
-	print( "'læŋɡwidʒ 'lɘr:niŋ ænd 'ti:tʃiŋ" )
-	print( 'Ngôn Ngữ, Sự học,' )
-	print( 'ללמוד וללמד את השֵפה' )
-	print( "L'enseignement et l'étude des langues" )
-	print( '말배우기와 가르치기' )
-	print( 'Nauka języków obcych' )
-	print( 'Γλωσσική Εκμὰθηση και Διδασκαλία' )
-	print( 'ﺗﺪﺭﯾﺲ ﻭ ﯾﺎﺩﮔﯿﺮﯼ ﺯﺑﺎﻥ' )
-	print( 'ﺗﻌﻠﻢ ﻭﺗﺪﺭﻳﺲ ﺍﻟﻌﺮﺑﻴﺔ' )
-	print( 'เรียนและสอนภาษา' )
+    error_count = 0
+    # From - http:#www.humancomp.org/unichtm/unilang8.htm
+    print( 'Testing unicode output:')
+    print( '外国語の学習と教授' )
+    print( 'Изучение и обучение иностранных языков' )
+    print( '語文教學・语文教学' )
+    print( 'Enseñanza y estudio de idiomas' )
+    print( 'Изучаване и Преподаване на Чужди Езици' )
+    print( 'ქართული ენის შესწავლა და სწავლება' )
+    print( "'læŋɡwidʒ 'lɘr:niŋ ænd 'ti:tʃiŋ" )
+    print( 'Ngôn Ngữ, Sự học,' )
+    print( 'ללמוד וללמד את השֵפה' )
+    print( "L'enseignement et l'étude des langues" )
+    print( '말배우기와 가르치기' )
+    print( 'Nauka języków obcych' )
+    print( 'Γλωσσική Εκμὰθηση και Διδασκαλία' )
+    print( 'ﺗﺪﺭﯾﺲ ﻭ ﯾﺎﺩﮔﯿﺮﯼ ﺯﺑﺎﻥ' )
+    print( 'ﺗﻌﻠﻢ ﻭﺗﺪﺭﻳﺲ ﺍﻟﻌﺮﺑﻴﺔ' )
+    print( 'เรียนและสอนภาษา' )
 
-	print( '\nDid the above text print ok? (\'yes\' or \'no\')')
-	answer = get_line()
-	print( '\n' )
-	if answer == 'yes' or answer == 'y':
-		print('Fantastic!' )
-		print('PASSED.')
-	elseif answer == 'no' or answer == 'n':
-		print('Are you running this in Windows? (\'yes\' or \'no\')')
-		answer = get_line()
-		print( '\n' )
-		if answer == 'yes' or answer == 'y':
-			print('Let\'s go ahead and blame Windows then.' )
-			print('FAILED.')
-		elseif answer == 'no' or answer == 'n':
-			print('Well that\'s a bummer.' )
-			print( 'FAILED.')
-		else:
-			print('I have no idea what you just said. Maybe you should run the IO test again.')
-			print( 'FAILED.')
-		end
-		error_count = error_count + 1
-	else:
-		print('I\'m sorry, I don\'t speak moon language.')
-		print("Got: " + answer)
-		print( 'FAILED.')
-		error_count = error_count + 1
-	end
-	print( '\n' )
-	return error_count
+    print( '\nDid the above text print ok? (\'yes\' or \'no\')')
+    answer = get_line()
+    print( '\n' )
+    if answer == 'yes' or answer == 'y':
+        print('Fantastic!' )
+        print('PASSED.')
+    elif answer == 'no' or answer == 'n':
+        print('Are you running this in Windows? (\'yes\' or \'no\')')
+        answer = get_line()
+        print( '\n' )
+        if answer == 'yes' or answer == 'y':
+            print('Let\'s go ahead and blame Windows then.' )
+            print('FAILED.')
+        elif answer == 'no' or answer == 'n':
+            print('Well that\'s a bummer.' )
+            print( 'FAILED.')
+        else:
+            print('I have no idea what you just said. Maybe you should run the IO test again.')
+            print( 'FAILED.')
+        end
+        error_count = error_count + 1
+    else:
+        print('I\'m sorry, I don\'t speak moon language.')
+        print("Got: " + answer)
+        print( 'FAILED.')
+        error_count = error_count + 1
+    end
+    print( '\n' )
+    return error_count
 end
 
 def simple_math_test():
-	error_count = 0
-	print('Running some basic math tests...')
-	start_time = get_time()
-	x = myexp(1.0)
-	y = integrate(0.0,1.0)
-	print( 'Completed in ' + to_string(get_time() - start_time) + 's.' )
+    error_count = 0
+    print('Running some basic math tests...')
+    start_time = get_time()
+    x = myexp(1.0)
+    y = integrate(0.0,1.0)
+    print( 'Completed in ' + to_string(get_time() - start_time) + 's.' )
 
-	x_passed = (x > 2.718281) and (x < 2.718283)
-	y_passed = (y > 1.718280) and (y < 1.718282)
+    x_passed = (x > 2.718281) and (x < 2.718283)
+    y_passed = (y > 1.718280) and (y < 1.718282)
 
-	if x_passed and y_passed:
-		print('Ok. Your computer is still better than you at math.')
-		print( 'PASSED.' )
-	else:
-		print(x)
-		print(y)
-		print( 'Whoops. Are you sure your computer is still plugged in?' )
-		print( 'FAILED.' )
-		error_count = error_count + 1
-	end
+    if x_passed and y_passed:
+        print('Ok. Your computer is still better than you at math.')
+        print( 'PASSED.' )
+    else:
+        print(x)
+        print(y)
+        print( 'Whoops. Are you sure your computer is still plugged in?' )
+        print( 'FAILED.' )
+        error_count = error_count + 1
+    end
 
-	print( '\n' )
-	return error_count
+    print( '\n' )
+    return error_count
 end
 
 def generics_test():
-	error_count = 0
-	print( 'Performing a simple type inference test...' )
-	float_result = generic_adder( 15.0, 6.42 )
-	int_result   = generic_adder( 10, 2 )
-	float_passed = (float_result > 21.41) and (float_result < 21.43)
-	int_passed   = int_result == 12
+    error_count = 0
+    print( 'Performing a simple type inference test...' )
+    float_result = generic_adder( 15.0, 6.42 )
+    int_result   = generic_adder( 10, 2 )
+    float_passed = (float_result > 21.41) and (float_result < 21.43)
+    int_passed   = int_result == 12
 
-	if float_passed and int_passed:
-		print( 'PASSED.' )
-	else:
-		print( 'Apparently, I can\'t tell an integer from a hole in the wall.' )
-		print( 'FAILED.' )
-		error_count = error_count + 1
-	end
+    if float_passed and int_passed:
+        print( 'PASSED.' )
+    else:
+        print( 'Apparently, I can\'t tell an integer from a hole in the wall.' )
+        print( 'FAILED.' )
+        error_count = error_count + 1
+    end
 
-	print( '\n' )
-	return error_count
+    print( '\n' )
+    return error_count
 end
 
 def myexp(val):
-	sum     = 0.0
-	fact    = 1.0
-	x       = 1.0
-	for i in 1.0 to 100.0 by 1.0:
-	    fact = fact * i
-	    x = x * val
-	    sum = sum + x/fact
-	end
+    sum     = 0.0
+    fact    = 1.0
+    x       = 1.0
+    for i in 1.0 to 100.0 by 1.0:
+        fact = fact * i
+        x = x * val
+        sum = sum + x/fact
+    end
 
-	return sum + 1.0
+    return sum + 1.0
 end
 
 def integrate(min,max):
@@ -540,6 +540,6 @@ def integrate(min,max):
 end
 
 def generic_adder( a, b ):
-	x = a + b
-	return x
+    x = a + b
+    return x
 end

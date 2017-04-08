@@ -1,4 +1,4 @@
-# EOPLE
+# Eople
 
 ## Introduction
 
@@ -6,23 +6,191 @@ Eople is a concurrency oriented programming language designed to make life easie
 
 ## Features
 
-* Efficient actor-like concurrency
+* Efficient actor-oriented concurrency
+* Fast multi-core virtual machine
 * Strong static type system with type inference
-* Fast byte code compilation and multi-core virtual machine
-* Support for a reactive style of programming
-* Unsurprising syntax
+* Reactive style for async communication
+* Easy to learn
 
 ## Installing
+Currently, building Eople on Linux and Mac OS X is supported. Windows will likely also work, but no guarantees.
+
+#### Dependencies
+* cmake (>=2.6)
+* g++ (>=4.7) or clang (>=3.3)
+* brew (Mac)
 
 ### Linux
+```bash
+sudo apt-get install cmake
+git clone https://github.com/FBMachine/eople.git
+cd eople && mkdir build && cd build
+cmake ..
+sudo make install -j8
+cd ../examples
+eople test_suite.eop Test::main
+```
 
-#### Requirements
-* cmake (2.6 or greater)
-* g++ (preferably 4.8 or greater)
+### Mac OS X
+```bash
+brew install cmake
+git clone https://github.com/FBMachine/eople.git
+cd eople && mkdir build && cd build
+cmake ..
+sudo make install -j8
+cd ../examples
+eople test_suite.eop Test::main
+```
 
+## Hello World
+Open up your favorite editor, and let's start with something simple. This should look unsurprising to you if you have experience with a language like python, lua, or ruby.
 
-Enter the eople/build directory, and run `cmake ../`, followed by `sudo make install`. Run `eople`.
+#### hello.eop
+```
+def main():
+    print("Hello, World!")
+end
+```
 
+To run this example:
+```
+eople hello.eop
+```
+```
+Hello, World!
+```
+
+For verbose output from the eople runtime, run with -v:
+```
+eople -v hello.eop
+```
+```
+vm> Initializing with 8 cores.
+eve> Importing module 'hello.eop'.
+eve> Total time for import: 0.123000 ms.
+eve> Import of 'hello.eop' succeeded. 0 Errors.
+eve> Spawning process 'main'.
+eve> Total time for code generation: 0.098000 ms.
+eve> Code generation of main succeeded. 0 Errors.
+
+Hello, World!
+
+eve> Execution completed in 0.000030 seconds.
+vm> Recieved shutdown signal. Waiting to deliver 0 messages...
+vm> Shutdown complete.
+```
+
+Let's take a look at creating a simple class.
+
+#### bean_counter.eop
+```
+class BeanCounter():
+    count = 0
+
+    def AddBeans(beans):
+        count = count + beans
+    end
+
+    def GetCount():
+        return count
+    end
+end
+
+def main():
+    counter = BeanCounter()
+
+    for i in 0 to 100:
+        counter->AddBeans(1)
+    end
+
+    beans = counter->GetCount()
+
+    when beans:
+        print("Collected " + to_string(beans) + " beans.")
+    end
+end
+```
+
+```
+eople bean_counter.eop
+```
+```
+Collected 100 beans.
+```
+
+This again probably looks familiar to you, except for one keyword: __when__. The result returned from `counter->GetCount()` was not a value, but instead a promise. That counter object you created was actually an extremely lightweight asynchronous process. All class instances in eople communicate asynchronously with each other. The "counter->GetCount()" expression is a message being passed to the counter object. Instead of returning the result of its computation immediately, it returns a promise of a future result being computed in the `counter` process.
+
+Promises in Eople behave sort of like booleans. Except you don't evaluate them at a static moment in time, since their values are set to true in a separate process running in parallel to the current process. Instead of thinking about __if__ a promise result is ready, you need to start thinking temporally, in terms of __when__ the result is ready. In other languages, this type of pattern is usually implemented with callbacks.
+
+You might wonder if creating a huge number of asynchronous processes and sending tons of async messages has a lot of overhead. Like Erlang however, Eople is optimized for this usage pattern. Let's try to spawn a million async objects and see how long it takes:
+
+#### spawn_test.eop
+```
+def main():
+    print("Spawning 1,000,000 processes.")
+    start_time = get_time()
+    for i in 0 to 1000000:
+        process = SimpleClass()
+    end
+
+    delta = get_time() - start_time
+    print("Total time spawning 1,000,000 processes: " + to_string(delta*1000.0) + " milliseconds." )
+    print("Average process spawn time: " + to_string(delta) + " microseconds." )
+end
+
+class SimpleClass():
+    counter = 0
+
+    def Message(delta):
+        counter = counter + delta
+    end
+end
+```
+
+On my aging AMD fx-8120, this is the result:
+```
+daniel@daniel-CM1831:~/git_repos/eople/examples$ eople spawn_test.eop
+Spawning 1,000,000 processes.
+Total time spawning 1,000,000 processes: 495.513 milliseconds.
+Average process spawn time: 0.495513 microseconds.
+```
+
+0.5μs per process is not bad.
+
+As for messaging overhead:
+#### message_test.eop
+```
+def main():
+    print("Messaging process 1,000,000 times.")
+    process = SimpleClass()
+    start_time = get_time()
+    for i in 0 to 1000000:
+        process->Message(1)
+    end
+
+    delta = get_time() - start_time
+    print("Total time sending 1,000,000 messages: " + to_string(delta*1000.0) + " milliseconds." )
+    print("Average message send time: " + to_string(delta) + " microseconds." )
+end
+
+class SimpleClass():
+    counter = 0
+
+    def Message(delta):
+        counter = counter + delta
+    end
+end
+```
+
+Running this on the same linux machine:
+```
+daniel@daniel-CM1831:~/git_repos/eople/examples$ eople message_test.eop
+Messaging process 1,000,000 times.
+Total time sending 1,000,000 messages: 5353.45 milliseconds.
+Average message send time: 5.35345 microseconds.
+```
+
+Again, only minor overhead for asynchronous messaging.
 
 ## Using the Eople Virtual Environment (E.V.E.)
 
@@ -90,11 +258,11 @@ Defining a function is again, unsurprising (don't worry, you're only about 2 min
 ```
 eople> def join(strings):
 ......     result = ""
-...... 
+......
 ......     for string in strings:
 ......         result = result + string + " "
 ......     end
-...... 
+......
 ......     return result
 ...... end
 ```
@@ -109,11 +277,11 @@ Ok, things are just about to get interesting. Let's go ahead and define a simple
 ```
 eople> class BeanCounter():
 ......     count = 0
-...... 
+......
 ......     def AddBeans(beans):
 ......         count = count + beans
 ......     end
-...... 
+......
 ......     def GetCount():
 ......         return count
 ......     end
@@ -181,27 +349,27 @@ The whenever statement allows you to handle concurrent events in a more reactive
 
 ```
 class Foo():
-	event_log = array(<string>)
+    event_log = array(<string>)
 
-	whenever event_log.size() % 3 == 0:
-		print("Flushing to file...")
-		// ...
-		event_log.clear()
-	end
+    whenever event_log.size() % 3 == 0:
+        print("Flushing to file...")
+        // ...
+        event_log.clear()
+    end
 
-	def do_stuff():
-		// do some stuff...
-		// ...
-		// log an event
-		event_log.push("Hit some event.")
-	end
+    def do_stuff():
+        // do some stuff...
+        // ...
+        // log an event
+        event_log.push("Hit some event.")
+    end
 
-	def do_other_stuff():
-		// do some other stuff...
-		// ...
-		// log an event
-		event_log.push("Hit some other event.")
-	end
+    def do_other_stuff():
+        // do some other stuff...
+        // ...
+        // log an event
+        event_log.push("Hit some other event.")
+    end
 end
 
 foo = Foo()

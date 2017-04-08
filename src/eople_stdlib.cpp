@@ -217,5 +217,28 @@ bool FloatToString( process_t process_ref )
   return true;
 }
 
+bool PromiseToString( process_t process_ref )
+{
+  std::ostringstream string_stream;
+  promise_t promise = process_ref->OperandA()->promise;
+
+  if( promise->value.object_type == (u8)ValueType::STRING )
+  {
+    string_stream << *promise->value.string_ref;
+  }
+  else if( promise->value.object_type == (u8)ValueType::INT )
+  {
+    string_stream << promise->value.int_val;
+  }
+  else if( promise->value.object_type == (u8)ValueType::FLOAT )
+  {
+    string_stream << promise->value.float_val;
+  }
+
+  process_ref->ccall_return_val->string_ref = new std::string();
+  *process_ref->ccall_return_val->string_ref = string_stream.str();
+  return true;
+}
+
 } // namespace Instruction
 } // namespace Eople

@@ -18,6 +18,7 @@ static std::vector<FILE*> s_file_stack;
 static std::string s_context;
 static bool s_dirty = true;
 static bool s_print_errors = true;
+static VerbosityLevel s_verbosity = VerbosityLevel::ALL;
 
 bool PushFile( std::string file_name )
 {
@@ -47,7 +48,12 @@ void SilenceErrors( bool silence )
   s_print_errors = !silence;
 }
 
-void Print( const char* format, va_list args )
+void SetVerbosityLevel( VerbosityLevel level )
+{
+  s_verbosity = level;
+}
+
+void PrintImpl( const char* format, va_list args )
 {
   // regenerate context string?
   if( s_dirty )
@@ -77,11 +83,22 @@ void Print( const char* format, va_list args )
   std::cout << buffer;
 }
 
+void Debug( const char* format, ... )
+{
+  if( s_verbosity != VerbosityLevel::NO_DEBUG )
+  {
+    va_list args;
+    va_start(args, format);
+    PrintImpl(format, args);
+    va_end(args);
+  }
+}
+
 void Print( const char* format, ... )
 {
   va_list args;
   va_start(args, format);
-  Print(format, args);
+  PrintImpl(format, args);
   va_end(args);
 }
 
@@ -91,7 +108,7 @@ void Error( const char* format, ... )
   {
     va_list args;
     va_start(args, format);
-    Print(format, args);
+    PrintImpl(format, args);
     va_end(args);
   }
 }

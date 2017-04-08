@@ -8,7 +8,7 @@ namespace Eople
 {
 
 #define KEYWORD_LIST "namespace", "struct", "def", "class", "end", \
-                     "if", "else", "elseif", "for", "in", "to", "by", "while", "when", "whenever", \
+                     "if", "else", "elif", "for", "in", "to", "by", "while", "when", "whenever", \
                      "return", "break", "private", "const", "true", "false", "and", "or", \
                      "not"
 
@@ -212,7 +212,7 @@ Token Lexer::NextToken()
     return(m_token = TOK_STRING);
   }
 
-  if( *m_char == '/' && Peek('/') )
+  if( *m_char == '#' )
   {
     while( m_char < m_end && *m_char != '\n' && *m_char != '\r' )
     {

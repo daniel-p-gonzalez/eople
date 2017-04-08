@@ -2,9 +2,11 @@
 #include "eople_control_flow.h"
 #include "eople_binop.h"
 
+#include <iostream>
 #include <queue>
 
 #define LOG_DEBUG 0
+#define DUMP_CODE 0
 
 namespace Eople
 {
@@ -58,8 +60,6 @@ std::unique_ptr<ExecutableModule> ByteCodeGen::InitModule( Node::Module* module 
 #define CHOOSE_BOOL_OP_IF_UNSET(op) opcode = ((opcode == Opcode::NOP) ? Opcode::op : opcode)
 
 #define SYMBOL_TO_STACK(node) (m_function_node->GetStackIndex(node))
-
-// TODO: Hot-swap functions to support when/whenever in the repl
 
 // double dispatch support
 size_t ByteCodeGen::GenExpressionTerm( Node::Expression* node, bool is_root )
@@ -1117,6 +1117,16 @@ void ByteCodeGen::GenFunction( Node::Function* node )
   {
     m_function->code.push_back(ByteCode(Opcode::Return));
   }
+
+  #if DUMP_CODE == 1
+    Eople::Log::Print("def %s\n", m_function->name.c_str());
+    for( auto instr : m_function->code )
+    {
+      Eople::Log::Print("  %s, %d, %d, %d, %d\n", InstructionToString(instr.instruction).c_str(),
+                                              instr.a, instr.b, instr.c, instr.d);
+    }
+    Eople::Log::Print("end\n");
+  #endif
 }
 
 void ByteCodeGen::InitFunction( Node::Function* node )
@@ -1379,6 +1389,7 @@ void ByteCodeGen::GenModule( ExecutableModule* module )
 
   function_count = 0;
   member_count = 0;
+  // pre-initialize generated constructors and member functions
   for( auto &function : m_current_module->module->classes )
   {
     m_base_stack_offset = 0;

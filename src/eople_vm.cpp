@@ -1,4 +1,4 @@
-#include "eople.h"
+#include "eople_exec_env.h"
 #include "eople_core.h"
 #include "eople_opcodes.h"
 #include "eople_binop.h"
@@ -6,6 +6,7 @@
 #include "eople_stdlib.h"
 #include "eople_vm.h"
 
+#include <iostream>
 #include <stdio.h>
 #include <vector>
 #include <map>
@@ -17,6 +18,69 @@ namespace Eople
 {
 
 #define OPCODE_TO_INSTRUCTION(opcode) case Opcode::opcode: return Instruction::opcode
+
+#define INSTRUCTION_TO_STRING(opcode) else if(instruction == Instruction::opcode){return #opcode;}
+
+std::string InstructionToString( InstructionImpl instruction )
+{
+  if(instruction == Instruction::AddI){return "AddI";}
+  INSTRUCTION_TO_STRING(SubI)
+  INSTRUCTION_TO_STRING(MulI)
+  INSTRUCTION_TO_STRING(DivI)
+  INSTRUCTION_TO_STRING(ModI)
+  INSTRUCTION_TO_STRING(AddF)
+  INSTRUCTION_TO_STRING(SubF)
+  INSTRUCTION_TO_STRING(MulF)
+  INSTRUCTION_TO_STRING(DivF)
+  INSTRUCTION_TO_STRING(ShiftLeft)
+  INSTRUCTION_TO_STRING(ShiftRight)
+  INSTRUCTION_TO_STRING(BAnd)
+  INSTRUCTION_TO_STRING(BXor)
+  INSTRUCTION_TO_STRING(BOr)
+  INSTRUCTION_TO_STRING(ConcatS)
+  INSTRUCTION_TO_STRING(EqualS)
+  INSTRUCTION_TO_STRING(ForI)
+  INSTRUCTION_TO_STRING(ForF)
+  INSTRUCTION_TO_STRING(ForA)
+  INSTRUCTION_TO_STRING(While)
+  INSTRUCTION_TO_STRING(Return)
+  INSTRUCTION_TO_STRING(ReturnValue)
+  INSTRUCTION_TO_STRING(PrintI)
+  INSTRUCTION_TO_STRING(PrintF)
+  INSTRUCTION_TO_STRING(FunctionCall)
+  INSTRUCTION_TO_STRING(ProcessMessage)
+  INSTRUCTION_TO_STRING(GreaterThanI)
+  INSTRUCTION_TO_STRING(LessThanI)
+  INSTRUCTION_TO_STRING(EqualI)
+  INSTRUCTION_TO_STRING(NotEqualI)
+  INSTRUCTION_TO_STRING(LessEqualI)
+  INSTRUCTION_TO_STRING(GreaterEqualI)
+  INSTRUCTION_TO_STRING(GreaterThanF)
+  INSTRUCTION_TO_STRING(LessThanF)
+  INSTRUCTION_TO_STRING(EqualF)
+  INSTRUCTION_TO_STRING(NotEqualF)
+  INSTRUCTION_TO_STRING(LessEqualF)
+  INSTRUCTION_TO_STRING(GreaterEqualF)
+  INSTRUCTION_TO_STRING(And)
+  INSTRUCTION_TO_STRING(Or)
+  INSTRUCTION_TO_STRING(Store)
+  INSTRUCTION_TO_STRING(StringCopy)
+  INSTRUCTION_TO_STRING(SpawnProcess)
+  INSTRUCTION_TO_STRING(WhenRegister)
+  INSTRUCTION_TO_STRING(WheneverRegister)
+  INSTRUCTION_TO_STRING(When)
+  INSTRUCTION_TO_STRING(Whenever)
+  INSTRUCTION_TO_STRING(Jump)
+  INSTRUCTION_TO_STRING(JumpIf)
+  INSTRUCTION_TO_STRING(JumpGT)
+  INSTRUCTION_TO_STRING(JumpLT)
+  INSTRUCTION_TO_STRING(JumpEQ)
+  INSTRUCTION_TO_STRING(JumpNEQ)
+  INSTRUCTION_TO_STRING(JumpLEQ)
+  INSTRUCTION_TO_STRING(JumpGEQ)
+
+  return "ERR";
+}
 
 InstructionImpl OpcodeToInstruction( Opcode opcode )
 {
@@ -202,7 +266,8 @@ void CoreMain( VirtualMachine* vm, u32 id )
           }
           vm->message_waiting_event.wait(lock);
           // If we get woken by the notify_all() above, it's time to go.
-          if( vm->idle_count == core_count  && vm->ready_to_exit.load() != 0 )
+          if( vm->message_count < (core_count - vm->idle_count) &&
+              vm->idle_count == core_count  && vm->ready_to_exit.load() != 0 )
           {
             return;
           }
@@ -225,6 +290,7 @@ VirtualMachine::VirtualMachine()
   : idle_count(0), message_count(0), process_count(0), process_list(nullptr), ready_to_exit(0)
 {
   core_count = Max<u32>( 2, std::thread::hardware_concurrency() );
+  Eople::Log::Debug("vm> Initializing with %d cores.\n", core_count);
   queue_locks = std::unique_ptr<std::atomic<int>[]>(new std::atomic<int>[core_count]);
 
   for( u32 i = 0; i < core_count; ++i )
@@ -239,10 +305,19 @@ void VirtualMachine::Shutdown()
   ready_to_exit.store(1);
   message_waiting_event.notify_all();
 
+  int mc = message_count;
+  Eople::Log::Debug("vm> Recieved shutdown signal. Waiting to deliver %d messages...\n", mc);
   for( u32 i = 0; i < core_count; ++i )
   {
     cores[i].join();
   }
+
+  mc = message_count;
+  if( mc > 0 )
+  {
+    Eople::Log::Error("vm> Left %d message undelivered.\n", mc);
+  }
+  Eople::Log::Debug("vm> Shutdown complete.\n");
 }
 
 VirtualMachine::~VirtualMachine()
@@ -479,8 +554,8 @@ void VirtualMachine::ExecuteProcessMessage( CallData call_data )
     // notify caller that the promise is ready
     if( call_data.promise )
     {
-      call_data.promise->is_ready = true;
       call_data.promise->value = *process_ref->stack_base;
+      call_data.promise->is_ready = true;
       SendMessage( CallData( nullptr, call_data.promise->owner, nullptr, call_data.promise ) );
       call_data.promise = nullptr;
     }
@@ -700,7 +775,8 @@ void VirtualMachine::ExecuteFunctionIncremental( CallData call_data )
     adjust_block(process_ref->whenever_blocks);
   }
 
-  if( old_locals_count != function->locals_count() )
+  // TODO: what happens if locals count shrinks?
+  if( old_locals_count < function->locals_count() )
   {
     size_t locals_init_count = function->locals_count() - old_locals_count;
     // TODO: only necessary because of how string/array memory management is currently implemented

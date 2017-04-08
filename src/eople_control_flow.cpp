@@ -4,6 +4,8 @@
 #include "eople_stdlib.h"
 #include "eople_vm.h"
 
+#include <iostream>
+
 namespace Eople
 {
 namespace Instruction
@@ -52,7 +54,25 @@ bool Ready( process_t process_ref )
   promise_t promise = process_ref->OperandA()->promise;
 
   assert( process_ref->ccall_return_val < process_ref->stack_end );
-  process_ref->ccall_return_val->bool_val = promise->is_ready;
+  bool is_ready = promise->is_ready;
+
+  promise_t child_promise = promise;
+  if( is_ready )
+  {
+    while( child_promise->value.object_type == (u8)ValueType::NIL || child_promise->value.object_type == (u8)ValueType::PROMISE )
+    {
+      // TODO: promise types are not always propagating correctly
+      if( child_promise->value.object_type == (u8)ValueType::NIL )
+      {
+        // is_ready = false;
+        break;
+      }
+      child_promise = child_promise->value.promise;
+      is_ready = is_ready && child_promise->is_ready;
+    }
+  }
+
+  process_ref->ccall_return_val->bool_val = is_ready;
 
   return true;
 }
@@ -72,6 +92,16 @@ bool GetValue( process_t process_ref )
   {
     array_t array_value = new std::vector<Object>(*promise->value.array_ref);
     *process_ref->ccall_return_val = Object::GetArray(array_value);
+  }
+  else if( promise->value.object_type == (u8)ValueType::PROMISE )
+  {
+    promise_t child_promise = promise->value.promise;
+    // recurse, to support chained promises
+    while( child_promise->value.object_type == (u8)ValueType::PROMISE )
+    {
+      child_promise = child_promise->value.promise;
+    }
+    *process_ref->ccall_return_val = child_promise->value;
   }
   else
   {
@@ -447,6 +477,9 @@ void CopyMessageArgs( const Function* function, process_t process_ref, Object* d
     }
     else // TODO: make sure this all makes sense
     {
+      // this seems very wrong. should be incrementing ip,
+      //  and the (i+2) guard logic is wrong (test with parameter_count == 5)
+
       // copy args to stack
       for( size_t i = 0; (i+2) < parameter_count; )
       {

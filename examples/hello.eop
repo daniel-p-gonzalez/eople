@@ -1,0 +1,5 @@
+# hello world example
+def main():
+    # print our message!
+    print("Hello, World!")
+end
