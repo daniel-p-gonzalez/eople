@@ -27,21 +27,21 @@ static int Eve( std::string filename, std::string entry_function, bool verbose )
     Eople::Log::Print("For help, try typing:\n");
     Eople::Log::Print("    help()\n");
     Eople::Log::Print("\n");
-    Eople::Log::Print("Note: multi-line support is temporarily broken, so this is currently of minimal use.");
-    Eople::Log::Print("\n\n");
     for(;;)
     {
-      Eople::Log::Print("eople> ");
+      Eople::Log::Print(">>> ");
 
       std::string command;
       std::getline(std::cin, command);
       if( !command.empty() && command.back() == ':' )
       {
         std::string line;
+        Eople::Log::Print("... ");
         std::getline(std::cin, line);
         while( !line.empty() )
         {
-          command += line + '\n';
+          command += '\n' + line;
+          Eople::Log::Print("... ");
           std::getline(std::cin, line);
         }
       }
@@ -143,10 +143,10 @@ static int Eve( std::string filename, std::string entry_function, bool verbose )
             Eople::Log::Print("\n");
           }
         }
-        else
-        {
-          Eople::Log::Print("Ok.\n");
-        }
+        // else
+        // {
+        //   Eople::Log::Print("Ok.\n");
+        // }
       }
       Eople::Log::Print("");
     }

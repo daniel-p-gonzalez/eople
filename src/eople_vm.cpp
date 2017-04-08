@@ -775,7 +775,8 @@ void VirtualMachine::ExecuteFunctionIncremental( CallData call_data )
     adjust_block(process_ref->whenever_blocks);
   }
 
-  if( old_locals_count != function->locals_count() )
+  // TODO: what happens if locals count shrinks?
+  if( old_locals_count < function->locals_count() )
   {
     size_t locals_init_count = function->locals_count() - old_locals_count;
     // TODO: only necessary because of how string/array memory management is currently implemented

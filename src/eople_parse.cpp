@@ -1628,7 +1628,10 @@ StatementNode Parser::ParseStatement()
     }
 
     BumpError();
-    Log::Error( "(%d): Parse Error: Assignment or function call expected after identifier.\n", m_last_error_line );
+    if( m_current_token != TOK_NEWLINE )
+    {
+      Log::Error( "(%d): Parse Error: Assignment or function call expected after identifier.\n", m_last_error_line );
+    }
     return nullptr;
   }
 
