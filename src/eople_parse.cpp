@@ -109,7 +109,7 @@ void Parser::IncrementalParse( Lexer &lexer, Node::Module* module )
   }
 
 //  m_function->symbols.FinalizeRegisters();
-//  m_function->symbols.DumpTable();
+  m_function->symbols.DumpTable();
   m_function->symbol_count = m_function->symbols.symbol_count();
   m_function->temp_count   += m_temp_max;
 
@@ -701,7 +701,6 @@ ExpressionNode Parser::ParseString()
 
 ExpressionNode Parser::ParseBool()
 {
-  std::string ident = m_lex->GetString();
   bool is_true = ConsumeExpected(TOK_TRUE);
   bool is_false = is_true ? false : ConsumeExpected(TOK_FALSE);
   if( !is_true && !is_false )
@@ -709,6 +708,10 @@ ExpressionNode Parser::ParseBool()
     return 0;
   }
 
+  // # is an illegal character for identifiers, using to avoid collision
+  // TODO: this will actually still cause symbol table collision if
+  //       someone uses "#true#" as a string constant
+  std::string ident = is_true ? "#true#" : "#false#";
   size_t symbol_id = m_function->symbols.GetTableEntryIndex(ident, true);
   return NodeBuilder::GetBoolNode(is_true, symbol_id, ident, m_last_line);
 }
