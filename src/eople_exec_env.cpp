@@ -94,17 +94,17 @@ void ExecutionEnvironment::Shutdown()
 void ExecutionEnvironment::ImportBuiltins()
 {
   auto string_type  = TypeBuilder::GetPrimitiveType(ValueType::STRING);
-  //auto int_type     = TypeBuilder::GetPrimitiveType(ValueType::INT);
-  //auto float_type   = TypeBuilder::GetPrimitiveType(ValueType::FLOAT);
-  //auto bool_type    = TypeBuilder::GetBoolType();
+  auto int_type     = TypeBuilder::GetPrimitiveType(ValueType::INT);
+  auto float_type   = TypeBuilder::GetPrimitiveType(ValueType::FLOAT);
+  auto bool_type    = TypeBuilder::GetBoolType();
   auto any_type     = TypeBuilder::GetAnyType();
   auto array_type   = TypeBuilder::GetArrayType(any_type);
   auto kind_type    = TypeBuilder::GetKindType(any_type);
   auto promise_type = TypeBuilder::GetPromiseType(any_type);
 
   auto array_string_type   = TypeBuilder::GetArrayType(string_type);
-  //auto array_int_type      = TypeBuilder::GetArrayType(int_type);
-  //auto array_float_type    = TypeBuilder::GetArrayType(float_type);
+  auto array_int_type      = TypeBuilder::GetArrayType(int_type);
+  auto array_float_type    = TypeBuilder::GetArrayType(float_type);
   //auto array_bool_type     = TypeBuilder::GetArrayType(bool_type);
   auto array_array_type    = TypeBuilder::GetArrayType(array_type);
 
@@ -112,6 +112,9 @@ void ExecutionEnvironment::ImportBuiltins()
                                             TypeBuilder::GetNilType() );
   m_builtins.AddFunctionSpecialization( print_func, Instruction::PrintI, TypeBuilder::GetPrimitiveType(ValueType::INT) );
   m_builtins.AddFunctionSpecialization( print_func, Instruction::PrintS, TypeBuilder::GetPrimitiveType(ValueType::STRING) );
+  m_builtins.AddFunctionSpecialization( print_func, Instruction::PrintSArr, array_string_type );
+  m_builtins.AddFunctionSpecialization( print_func, Instruction::PrintIArr, array_int_type );
+  m_builtins.AddFunctionSpecialization( print_func, Instruction::PrintFArr, array_float_type );
 
   m_builtins.AddFunction( "get_line", Instruction::GetLine, TypeBuilder::GetPrimitiveType(ValueType::STRING) );
   m_builtins.AddFunction( "array", Instruction::ArrayConstructor, kind_type, array_type );

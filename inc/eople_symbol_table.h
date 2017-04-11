@@ -182,7 +182,7 @@ public:
   {
     for( auto &entry : m_entries )
     {
-      Log::Print("[SYM_TABLE] %s : %s(%d)\n", entry.ident.c_str(), entry.is_constant ? "c" : "r", entry.stack_index);
+      Log::Debug("[SYM_TABLE] %s : %s(%d)\n", entry.ident.c_str(), entry.is_constant ? "c" : "r", entry.stack_index);
     }
   }
 };

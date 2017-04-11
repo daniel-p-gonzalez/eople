@@ -124,8 +124,13 @@ static int Eve( std::string filename, std::string entry_function, bool verbose )
       else if( command != "" )
       {
         command.push_back('\n');
-        if( !ee.ExecuteBuffer(command) )
+        bool force_print = command[0] == '!';
+        if( force_print || !ee.ExecuteBuffer(command) )
         {
+          if( force_print )
+          {
+            command.erase(0, 1);
+          }
           // maybe we're trying to get the value of an expression?
           command.pop_back();
           command = "print(" + command + ")";

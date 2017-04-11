@@ -6,7 +6,7 @@
 #include <queue>
 
 #define LOG_DEBUG 0
-#define DUMP_CODE 0
+#define DUMP_CODE 1
 
 namespace Eople
 {
@@ -313,6 +313,26 @@ size_t ByteCodeGen::GenExpressionTerm( Node::ProcessMessage* process_message, bo
   return dest;
 }
 
+size_t ByteCodeGen::GenExpressionTerm( Node::ArrayDereference* array_dereference, bool is_root )
+{
+  size_t stack_index = SYMBOL_TO_STACK(array_dereference);
+  auto array_deref_obj = array_dereference->GetAsArrayDereference();
+  size_t index_stack_index = GenExpressionTerm( array_deref_obj->index->GetAsLiteral(), false );
+
+  PushOpcode(Opcode::ArrayDeref);
+  PushOperand(stack_index);
+  PushOperand(index_stack_index);
+
+  if( is_root )
+  {
+    PushOperand(m_result_index);
+    return m_result_index;
+  }
+
+  PushOperand(m_current_temp);
+  return m_current_temp++;
+}
+
 size_t ByteCodeGen::GenExpressionTerm( Node::ArrayLiteral* array_literal, bool )
 {
   size_t stack_index = SYMBOL_TO_STACK(array_literal);
@@ -387,6 +407,12 @@ type_t ByteCodeGen::GetType( Node::Expression* node )
 type_t ByteCodeGen::GetType( Node::Identifier* identifier )
 {
   return m_function_node->GetExpressionType( identifier );
+}
+
+type_t ByteCodeGen::GetType( Node::ArrayDereference* array_deref_node )
+{
+  auto array_deref = array_deref_node->GetAsArrayDereference();
+  return m_function_node->GetExpressionType( array_deref->ident->GetAsIdentifier() );
 }
 
 type_t ByteCodeGen::GetType( Node::Literal* literal )
@@ -542,6 +568,7 @@ size_t ByteCodeGen::PushOpcode( Opcode opcode )
     OPCODE_CASE(Opcode::PrintI)
     OPCODE_CASE(Opcode::PrintF)
     OPCODE_CASE(Opcode::FunctionCall)
+    OPCODE_CASE(Opcode::ArrayDeref)
     OPCODE_CASE(Opcode::ProcessMessage)
     OPCODE_CASE(Opcode::Return)
     OPCODE_CASE(Opcode::ReturnValue)
@@ -1119,13 +1146,13 @@ void ByteCodeGen::GenFunction( Node::Function* node )
   }
 
   #if DUMP_CODE == 1
-    Eople::Log::Print("def %s\n", m_function->name.c_str());
+    Eople::Log::Debug("def %s\n", m_function->name.c_str());
     for( auto instr : m_function->code )
     {
-      Eople::Log::Print("  %s, %d, %d, %d, %d\n", InstructionToString(instr.instruction).c_str(),
+      Eople::Log::Debug("  %s, %d, %d, %d, %d\n", InstructionToString(instr.instruction).c_str(),
                                               instr.a, instr.b, instr.c, instr.d);
     }
-    Eople::Log::Print("end\n");
+    Eople::Log::Debug("end\n");
   #endif
 }
 
