@@ -282,7 +282,8 @@ typedef u16 Operand;
 
 //#define INSTR_CCONV _fastcall
 
-// Order must match order in eople_vm.cpp::ByteCode::instruction_table
+// opcodes must be 1 to 1 with Instruction::opcode
+// mapping defined in eople_vm.cpp::OpcodeToInstruction
 enum class Opcode
 {
   AddI,
@@ -310,6 +311,7 @@ enum class Opcode
   PrintI,
   PrintF,
   FunctionCall,
+  ArrayDeref,
   ProcessMessage,
   GreaterThanI,
   LessThanI,

@@ -9,6 +9,9 @@ namespace Instruction
 bool PrintI( process_t process_ref );
 bool PrintF( process_t process_ref );
 bool PrintS( process_t process_ref );
+bool PrintIArr( process_t process_ref );
+bool PrintFArr( process_t process_ref );
+bool PrintSArr( process_t process_ref );
 bool GetLine( process_t process_ref );
 bool ArrayConstructor( process_t process_ref );
 bool ArrayPush( process_t process_ref );
@@ -20,6 +23,7 @@ bool ArrayTopArray( process_t process_ref );
 bool ArrayTopString( process_t process_ref );
 bool ArrayPop( process_t process_ref );
 bool ArrayClear( process_t process_ref );
+bool ArrayDeref( process_t process_ref );
 bool GetTime( process_t process_ref );
 bool Timer( process_t process_ref );
 bool SleepMilliseconds( process_t process_ref );

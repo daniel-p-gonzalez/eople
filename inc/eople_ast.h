@@ -56,6 +56,7 @@ namespace Node
   struct FunctionCall;
   struct Return;
   struct BinaryOp;
+  struct ArrayDereference;
   struct Literal;
   struct TypeLiteral;
   struct ArrayLiteral;
@@ -84,6 +85,7 @@ typedef std::unique_ptr<Node::FunctionCall>      FunctionCallNode;
 typedef std::unique_ptr<Node::ProcessMessage>    ProcessMessageNode;
 typedef std::unique_ptr<Node::Return>            ReturnNode;
 typedef std::unique_ptr<Node::BinaryOp>          BinaryOpNode;
+typedef std::unique_ptr<Node::ArrayDereference>  ArrayDereferenceNode;
 typedef std::unique_ptr<Node::TypeLiteral>       TypeLiteralNode;
 typedef std::unique_ptr<Node::ArrayLiteral>      ArrayLiteralNode;
 typedef std::unique_ptr<Node::IntLiteral>        IntLiteralNode;
@@ -137,6 +139,7 @@ namespace Node
     virtual FunctionCall*   GetAsFunctionCall()   { return nullptr; }
     virtual ProcessMessage* GetAsProcessMessage() { return nullptr; }
     virtual Return*         GetAsReturn()         { return nullptr; }
+    virtual ArrayDereference* GetAsArrayDereference() { return nullptr; }
 
     u32 line;
   };
@@ -242,6 +245,19 @@ namespace Node
     ExpressionNode ident;
     std::vector<ExpressionNode> elements;
     type_t array_type;
+  };
+
+  struct ArrayDereference : public Expression
+  {
+    ArrayDereference( ExpressionNode in_ident, u32 line )
+      : Expression(line), ident(std::move(in_ident))
+    {
+    }
+
+    ArrayDereference* GetAsArrayDereference() { return this; }
+
+    ExpressionNode ident;
+    ExpressionNode index;
   };
 
   struct IntLiteral : public Literal
@@ -671,6 +687,11 @@ struct NodeBuilder
     return ExpressionNode( new Node::ArrayLiteral( std::move(ident), line ) );
   }
 
+  static ExpressionNode GetArrayDereferenceNode( ExpressionNode ident, u32 line )
+  {
+    return ExpressionNode( new Node::ArrayDereference( std::move(ident), line ) );
+  }
+
   static ExpressionNode GetIntNode( int_t int_val, size_t sym_index, std::string value_string, u32 line )
   {
     return ExpressionNode( new Node::IntLiteral( int_val, sym_index, value_string, line ) );
@@ -761,6 +782,7 @@ public:
     auto function_call      = node->GetAsFunctionCall();
     auto process_call       = node->GetAsProcessMessage();
     auto return_statement   = node->GetAsReturn();
+    auto array_dereference  = node->GetAsArrayDereference();
 
     if( module )
     {
@@ -845,6 +867,10 @@ public:
     else if( return_statement )
     {
       static_cast<BASECLASS_T*>(this)->Process(return_statement);
+    }
+    else if( array_dereference )
+    {
+      static_cast<BASECLASS_T*>(this)->Process(array_dereference);
     }
   }
 };

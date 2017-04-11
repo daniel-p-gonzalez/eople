@@ -225,6 +225,15 @@ InferenceState TypeInfer::PropagateType( Node::Identifier* identifier, type_t ty
   return state;
 }
 
+InferenceState TypeInfer::PropagateType( Node::ArrayDereference* array_deref, type_t type )
+{
+  type_t element_type = m_function->GetExpressionType( array_deref->ident->GetAsIdentifier() )->GetVaryingType();
+  InferenceState state;
+  state.type = element_type;
+  state.clear = true;
+  return state;
+}
+
 InferenceState TypeInfer::PropagateType( Node::Literal* literal, type_t type )
 {
   InferenceState state;

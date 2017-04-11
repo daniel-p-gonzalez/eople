@@ -536,6 +536,52 @@ ExpressionNode Parser::ParseValidIdentifier( std::string ident )
   return ident_node;
 }
 
+ExpressionNode Parser::ParseArrayDereference( std::string ident )
+{
+  if( !ConsumeExpected('[') )
+  {
+    return nullptr;
+  }
+
+  size_t symbol_id = m_function->symbols.GetTableEntryIndex(ident, false, true);
+
+  Node::Function* parent = m_function->context;
+  while( parent && symbol_id == m_function->symbols.NOT_FOUND )
+  {
+    symbol_id = parent->symbols.GetTableEntryIndex(ident, false, true);
+    parent = parent->context;
+  }
+
+  auto ident_node = symbol_id == m_function->symbols.NOT_FOUND ? nullptr : NodeBuilder::GetIdentifierNode( ident, symbol_id, m_last_line );
+
+  if( !ident_node )
+  {
+    BumpError();
+    Log::Error("(%d): Parse Error: Attempt to dereference uninitialized array: '%s'.\n", m_last_error_line, ident.c_str() );
+    return nullptr;
+  }
+
+  auto array_deref_node = NodeBuilder::GetArrayDereferenceNode(std::move(ident_node), m_last_line);
+  auto array_deref = array_deref_node->GetAsArrayDereference();
+
+  bool neg = ConsumeExpected('-');
+  array_deref->index = ParseInt(neg);
+
+  if( !array_deref->index )
+  {
+    BumpError();
+    Log::Error("(%d): Parse Error: Array dereference missing index.\n", m_last_error_line );
+  }
+
+  if( !ConsumeExpected(']') )
+  {
+    BumpError();
+    Log::Error("(%d): Parse Error: Array dereference missing closing ']'.\n", m_last_error_line );
+  }
+
+  return array_deref_node;
+}
+
 ExpressionNode Parser::ParseFunctionCallExpression( std::string ident )
 {
   bool struct_call = m_current_token == TOK_STRUCT_CALL;
@@ -763,6 +809,12 @@ ExpressionNode Parser::ParseFactor()
       return expr_node;
     }
 
+    expr_node = ParseArrayDereference(ident);
+    if( expr_node )
+    {
+      return expr_node;
+    }
+
     expr_node = ParseValidIdentifier(ident);
     if( expr_node )
     {
@@ -820,12 +872,24 @@ ExpressionNode Parser::ParseFactor()
   expr_node = ParseBool();
   if( expr_node )
   {
+    if( neg || pos )
+    {
+      BumpError();
+      Log::Error("(%d): Parse Error: Unexpected unary operator on bool literal.\n", m_last_error_line);
+      return nullptr;
+    }
     return expr_node;
   }
 
   expr_node = ParseString();
   if( expr_node )
   {
+    if( neg || pos )
+    {
+      BumpError();
+      Log::Error("(%d): Parse Error: Unexpected unary operator on string literal.\n", m_last_error_line);
+      return nullptr;
+    }
     return expr_node;
   }
 

@@ -73,6 +73,7 @@ private:
   InferenceState PropagateType( Node::ProcessMessage* process_call, type_t type );
   InferenceState PropagateType( Node::FunctionCall* function_call, type_t type );
   InferenceState PropagateType( Node::ArrayLiteral* array_literal, type_t type );
+  InferenceState PropagateType( Node::ArrayDereference* array_deref, type_t type );
   InferenceState PropagateType( Node::BinaryOp* binary_op, type_t type );
 
   void InferStatement( Node::NodeCommon* )

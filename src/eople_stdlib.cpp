@@ -38,6 +38,72 @@ bool PrintS( process_t process_ref )
   return true;
 }
 
+bool PrintSArr( process_t process_ref )
+{
+  auto array_ref = process_ref->OperandA()->array_ref;
+  assert(array_ref);
+
+  Log::Print("[");
+
+  for( size_t i = 0; i < array_ref->size(); ++i )
+  {
+    auto element = (*array_ref)[i];
+
+    if( i != 0 )
+    {
+      Log::Print(", ");
+    }
+    Log::Print("\'%s\'", element.string_ref->c_str());
+  }
+  Log::Print("]\n");
+
+  return true;
+}
+
+bool PrintFArr( process_t process_ref )
+{
+  auto array_ref = process_ref->OperandA()->array_ref;
+  assert(array_ref);
+
+  Log::Print("[");
+
+  for( size_t i = 0; i < array_ref->size(); ++i )
+  {
+    auto element = (*array_ref)[i];
+
+    if( i != 0 )
+    {
+      Log::Print(", ");
+    }
+    Log::Print("%f", element.float_val);
+  }
+  Log::Print("]\n");
+
+  return true;
+}
+
+bool PrintIArr( process_t process_ref )
+{
+  auto array_ref = process_ref->OperandA()->array_ref;
+  assert(array_ref);
+
+  Log::Print("[");
+
+  for( size_t i = 0; i < array_ref->size(); ++i )
+  {
+    auto element = (*array_ref)[i];
+
+    if( i != 0 )
+    {
+      Log::Print(", ");
+    }
+    Log::Print("%d", element.int_val);
+  }
+  Log::Print("]\n");
+
+  return true;
+}
+
 //bool GetLine( process_t process_ref )
 //{
 //  promise_t &promise = process_ref->ccall_return_val->promise;
@@ -152,6 +218,18 @@ bool ArrayPop( process_t process_ref )
 bool ArrayClear( process_t process_ref )
 {
   process_ref->OperandA()->array_ref->clear();
+
+  return true;
+}
+
+bool ArrayDeref( process_t process_ref )
+{
+  auto& array_ref = *process_ref->OperandA()->array_ref;
+  int_t index = process_ref->OperandB()->int_val;
+  auto result = process_ref->OperandC();
+
+  assert(index < array_ref.size());
+  *result = array_ref[index];
 
   return true;
 }
