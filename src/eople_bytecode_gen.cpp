@@ -317,7 +317,7 @@ size_t ByteCodeGen::GenExpressionTerm( Node::ArrayDereference* array_dereference
 {
   size_t stack_index = SYMBOL_TO_STACK(array_dereference);
   auto array_deref_obj = array_dereference->GetAsArrayDereference();
-  size_t index_stack_index = GenExpressionTerm( array_deref_obj->index->GetAsLiteral(), false );
+  size_t index_stack_index = GenExpressionTerm( array_deref_obj->index.get(), false );
 
   PushOpcode(Opcode::ArrayDeref);
   PushOperand(stack_index);
