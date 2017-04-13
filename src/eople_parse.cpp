@@ -688,6 +688,63 @@ ExpressionNode Parser::ParseArrayLiteral()
   return array_node;
 }
 
+ExpressionNode Parser::ParseDictLiteral()
+{
+  if( !ConsumeExpected('{') )
+  {
+    return nullptr;
+  }
+
+  static char count = 0;
+  std::string dict_literal_label = "dict literal ";
+  dict_literal_label += '0' + count++;
+  size_t symbol_id = m_function->symbols.GetTableEntryIndex(dict_literal_label, true);
+
+  auto dict_node = NodeBuilder::GetDictNode(NodeBuilder::GetIdentifierNode( dict_literal_label, symbol_id, m_last_line ), m_last_line);
+  auto dict = dict_node->GetAsDictLiteral();
+
+  auto key = ParseString();
+  while( key )
+  {
+    if( !ConsumeExpected(':') )
+    {
+      BumpError();
+      Log::Error("(%d): Parse Error: Missing expected ':'.\n", m_last_error_line );
+    }
+    auto val = ParseExpression();
+    if( !val )
+    {
+      BumpError();
+      Log::Error("(%d): Parse Error: Missing expected value in key-value pair.\n", m_last_error_line );
+    }
+
+    dict->keys.push_back( std::move(key) );
+    dict->values.push_back( std::move(val) );
+
+    bool another = ConsumeExpected(',');
+
+    // consume newlines between elements
+    ConsumeNewlines();
+
+    if( another )
+    {
+      key = ParseString();
+    }
+    else
+    {
+      key = nullptr;
+    }
+  }
+
+  if( !ConsumeExpected('}') )
+  {
+    BumpError();
+    Log::Error("(%d): Parse Error: Dict literal missing closing '}'.\n", m_last_error_line );
+  }
+
+  return dict_node;
+}
+
 ExpressionNode Parser::ParseFloat(bool neg)
 {
   f64 number = m_lex->GetF64();
@@ -852,6 +909,18 @@ ExpressionNode Parser::ParseFactor()
     {
       BumpError();
       Log::Error("(%d): Parse Error: Unexpected unary operator on array literal.\n", m_last_error_line);
+      return nullptr;
+    }
+    return expr_node;
+  }
+
+  expr_node = ParseDictLiteral();
+  if( expr_node )
+  {
+    if( neg || pos )
+    {
+      BumpError();
+      Log::Error("(%d): Parse Error: Unexpected unary operator on dict literal.\n", m_last_error_line);
       return nullptr;
     }
     return expr_node;

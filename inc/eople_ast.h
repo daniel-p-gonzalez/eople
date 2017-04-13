@@ -60,6 +60,7 @@ namespace Node
   struct Literal;
   struct TypeLiteral;
   struct ArrayLiteral;
+  struct DictLiteral;
   struct IntLiteral;
   struct FloatLiteral;
   struct BoolLiteral;
@@ -88,6 +89,7 @@ typedef std::unique_ptr<Node::BinaryOp>          BinaryOpNode;
 typedef std::unique_ptr<Node::ArrayDereference>  ArrayDereferenceNode;
 typedef std::unique_ptr<Node::TypeLiteral>       TypeLiteralNode;
 typedef std::unique_ptr<Node::ArrayLiteral>      ArrayLiteralNode;
+typedef std::unique_ptr<Node::DictLiteral>       DictLiteralNode;
 typedef std::unique_ptr<Node::IntLiteral>        IntLiteralNode;
 typedef std::unique_ptr<Node::FloatLiteral>      FloatLiteralNode;
 typedef std::unique_ptr<Node::BoolLiteral>       BoolLiteralNode;
@@ -122,6 +124,7 @@ namespace Node
     virtual Literal*        GetAsLiteral()        { return nullptr; }
     virtual TypeLiteral*    GetAsTypeLiteral()    { return nullptr; }
     virtual ArrayLiteral*   GetAsArrayLiteral()   { return nullptr; }
+    virtual DictLiteral*    GetAsDictLiteral()    { return nullptr; }
     virtual IntLiteral*     GetAsIntLiteral()     { return nullptr; }
     virtual FloatLiteral*   GetAsFloatLiteral()   { return nullptr; }
     virtual BoolLiteral*    GetAsBoolLiteral()    { return nullptr; }
@@ -258,6 +261,20 @@ namespace Node
 
     ExpressionNode ident;
     ExpressionNode index;
+  };
+
+  struct DictLiteral : public Expression
+  {
+    DictLiteral( ExpressionNode in_ident, u32 line )
+      : Expression(line), ident(std::move(in_ident))
+    {
+    }
+
+    DictLiteral* GetAsDictLiteral() { return this; }
+
+    ExpressionNode ident;
+    std::vector<ExpressionNode> keys;
+    std::vector<ExpressionNode> values;
   };
 
   struct IntLiteral : public Literal
@@ -692,6 +709,11 @@ struct NodeBuilder
     return ExpressionNode( new Node::ArrayDereference( std::move(ident), line ) );
   }
 
+  static ExpressionNode GetDictNode( ExpressionNode ident, u32 line )
+  {
+    return ExpressionNode( new Node::DictLiteral( std::move(ident), line ) );
+  }
+
   static ExpressionNode GetIntNode( int_t int_val, size_t sym_index, std::string value_string, u32 line )
   {
     return ExpressionNode( new Node::IntLiteral( int_val, sym_index, value_string, line ) );
@@ -770,6 +792,7 @@ public:
     auto string_literal     = node->GetAsStringLiteral();
     auto type_literal       = node->GetAsTypeLiteral();
     auto array_literal      = node->GetAsArrayLiteral();
+    auto dict_literal       = node->GetAsDictLiteral();
     auto binary_op          = node->GetAsBinaryOp();
     auto for_init           = node->GetAsForInit();
     auto for_statement      = node->GetAsFor();
