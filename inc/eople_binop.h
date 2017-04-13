@@ -44,6 +44,8 @@ bool And( process_t process_ref );
 bool Or( process_t process_ref );
 
 bool Store( process_t process_ref );
+bool StoreArrayElement( process_t process_ref );
+bool StoreArrayStringElement( process_t process_ref );
 bool StringCopy( process_t process_ref );
 
 bool SpawnProcess( process_t process_ref );

@@ -328,6 +328,8 @@ enum class Opcode
   And,
   Or,
   Store,
+  StoreArrayElement,
+  StoreArrayStringElement,
   StringCopy,
   SpawnProcess,
   WhenRegister,

@@ -563,6 +563,8 @@ size_t ByteCodeGen::PushOpcode( Opcode opcode )
     OPCODE_CASE(Opcode::And)
     OPCODE_CASE(Opcode::Or)
     OPCODE_CASE(Opcode::Store)
+    OPCODE_CASE(Opcode::StoreArrayElement)
+    OPCODE_CASE(Opcode::StoreArrayStringElement)
     OPCODE_CASE(Opcode::StringCopy)
     OPCODE_CASE(Opcode::SpawnProcess)
     OPCODE_CASE(Opcode::PrintI)
@@ -575,7 +577,7 @@ size_t ByteCodeGen::PushOpcode( Opcode opcode )
     OPCODE_CASE(Opcode::NOP)
     default:
     {
-      Log::Error("Unhandled opcode. Get to work! (%d)\n", opcode);
+      Log::Error("Unhandled opcode. (%d)\n", opcode);
       BumpError();
       break;
     }
@@ -879,15 +881,34 @@ void ByteCodeGen::GenStatement( Node::Assignment* assignment )
   m_current_temp = m_first_temp;
 
   auto left_ident = assignment->left->GetAsIdentifier();
-  m_result_index = SYMBOL_TO_STACK(left_ident);
-  size_t rhs = GenExpressionTerm( assignment->right.get(), true );
-  bool rhs_is_func_call = rhs == (m_function->storage_requirement+m_base_stack_offset);
-  // check for simple assignment
-  if( rhs != m_result_index && (rhs < m_first_temp || rhs_is_func_call) )
+  auto left_array_deref = assignment->left->GetAsArrayDereference();
+  if( left_ident )
   {
-    type_t op_value_type = GetType(left_ident);
-    PushOpcode( (op_value_type == TypeBuilder::GetPrimitiveType(ValueType::STRING)) ? Opcode::StringCopy : Opcode::Store );
+    m_result_index = SYMBOL_TO_STACK(left_ident);
+    size_t rhs = GenExpressionTerm( assignment->right.get(), true );
+    bool rhs_is_func_call = rhs == (m_function->storage_requirement+m_base_stack_offset);
+    // check for simple assignment
+    if( rhs != m_result_index && (rhs < m_first_temp || rhs_is_func_call) )
+    {
+      type_t op_value_type = GetType(left_ident);
+      PushOpcode( (op_value_type == TypeBuilder::GetPrimitiveType(ValueType::STRING)) ? Opcode::StringCopy : Opcode::Store );
+      PushOperand(m_result_index);
+      PushOperand(rhs);
+    }
+  }
+  else if( left_array_deref )
+  {
+    m_result_index = SYMBOL_TO_STACK(left_array_deref);
+    size_t rhs = GenExpressionTerm( assignment->right.get(), true );
+    bool rhs_is_func_call = rhs == (m_function->storage_requirement+m_base_stack_offset);
+
+    size_t index_stack_index = GenExpressionTerm( left_array_deref->index.get(), false );
+
+    type_t op_value_type = GetType(left_array_deref);
+    PushOpcode( (op_value_type == TypeBuilder::GetPrimitiveType(ValueType::STRING)) ? Opcode::StoreArrayStringElement : Opcode::StoreArrayElement );
+
     PushOperand(m_result_index);
+    PushOperand(index_stack_index);
     PushOperand(rhs);
   }
 }

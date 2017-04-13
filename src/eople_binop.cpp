@@ -341,6 +341,43 @@ bool Store( process_t process_ref )
   return true;
 }
 
+bool StoreArrayElement( process_t process_ref )
+{
+  auto& array_ref = *process_ref->OperandA()->array_ref;
+  int_t index = process_ref->OperandB()->int_val;
+  Object* source = process_ref->OperandC();
+
+  assert(index < array_ref.size());
+  array_ref[index] = *source;
+
+  return true;
+}
+
+bool StoreArrayStringElement( process_t process_ref )
+{
+  auto& array_ref = *process_ref->OperandA()->array_ref;
+  int_t index = process_ref->OperandB()->int_val;
+  Object* source = process_ref->OperandC();
+
+  assert(index < array_ref.size());
+
+  // if we're storing from a temp object, just steal its pointers instead of copying
+  if( process_ref->IsTemporary(source) )
+  {
+    if( array_ref[index].string_ref )
+    {
+      delete array_ref[index].string_ref;
+    }
+    array_ref[index].string_ref = source->string_ref;
+  }
+  else
+  {
+    array_ref[index] = *source;
+  }
+
+  return true;
+}
+
 bool SpawnProcess( process_t process_ref )
 {
   Object*   dest        = process_ref->OperandA();
