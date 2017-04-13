@@ -35,5 +35,7 @@ bool IntToString( process_t process_ref );
 bool FloatToString( process_t process_ref );
 bool PromiseToString( process_t process_ref );
 
+bool GetURL( process_t process_ref );
+
 } // namespace Instruction
 } // namespace Eople

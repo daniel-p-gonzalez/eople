@@ -2,6 +2,8 @@
 #include "eople_stdlib.h"
 #include "eople_vm.h"
 
+#include <curl/curl.h>
+
 #include <iostream>
 #include <cstdio>
 #include <thread>
@@ -15,7 +17,7 @@ namespace Instruction
 bool PrintI( process_t process_ref )
 {
   Object* result = process_ref->OperandA();
-  Log::Print("%d\n", result->int_val);
+  std::cout << result->int_val << std::endl;
 
   return true;
 }
@@ -23,7 +25,7 @@ bool PrintI( process_t process_ref )
 bool PrintF( process_t process_ref )
 {
   Object* result = process_ref->OperandA();
-  Log::Print("%f\n", result->float_val);
+  std::cout << result->float_val << std::endl;
 
   return true;
 }
@@ -31,7 +33,7 @@ bool PrintF( process_t process_ref )
 bool PrintS( process_t process_ref )
 {
   Object* text = process_ref->OperandA();
-  Log::Print("%s\n", text->string_ref->c_str());
+  std::cout << *text->string_ref << std::endl;
 
   process_ref->TryCollectTempString(text);
 
@@ -43,7 +45,7 @@ bool PrintSArr( process_t process_ref )
   auto array_ref = process_ref->OperandA()->array_ref;
   assert(array_ref);
 
-  Log::Print("[");
+  std::cout << "[";
 
   for( size_t i = 0; i < array_ref->size(); ++i )
   {
@@ -51,11 +53,11 @@ bool PrintSArr( process_t process_ref )
 
     if( i != 0 )
     {
-      Log::Print(", ");
+      std::cout << ", ";
     }
-    Log::Print("\'%s\'", element.string_ref->c_str());
+    std::cout << "\'" << *element.string_ref << "\'";
   }
-  Log::Print("]\n");
+  std::cout << "]" << std::endl;
 
   return true;
 }
@@ -65,7 +67,7 @@ bool PrintFArr( process_t process_ref )
   auto array_ref = process_ref->OperandA()->array_ref;
   assert(array_ref);
 
-  Log::Print("[");
+  std::cout << "[";
 
   for( size_t i = 0; i < array_ref->size(); ++i )
   {
@@ -73,11 +75,11 @@ bool PrintFArr( process_t process_ref )
 
     if( i != 0 )
     {
-      Log::Print(", ");
+      std::cout << ", ";
     }
-    Log::Print("%f", element.float_val);
+    std::cout << element.float_val;
   }
-  Log::Print("]\n");
+  std::cout << "]" << std::endl;
 
   return true;
 }
@@ -87,7 +89,7 @@ bool PrintIArr( process_t process_ref )
   auto array_ref = process_ref->OperandA()->array_ref;
   assert(array_ref);
 
-  Log::Print("[");
+  std::cout << "[";
 
   for( size_t i = 0; i < array_ref->size(); ++i )
   {
@@ -95,11 +97,11 @@ bool PrintIArr( process_t process_ref )
 
     if( i != 0 )
     {
-      Log::Print(", ");
+      std::cout << ", ";
     }
-    Log::Print("%d", element.int_val);
+    std::cout << element.int_val;
   }
-  Log::Print("]\n");
+  std::cout << "]" << std::endl;
 
   return true;
 }
@@ -315,6 +317,46 @@ bool PromiseToString( process_t process_ref )
 
   process_ref->ccall_return_val->string_ref = new std::string();
   *process_ref->ccall_return_val->string_ref = string_stream.str();
+  return true;
+}
+
+size_t CurlStoreString(void* contents, size_t size, size_t nmemb, std::string* out_string)
+{
+  *out_string += (char*)contents;
+  return size * nmemb;
+}
+
+bool GetURL( process_t process_ref )
+{
+  Object* text_obj = process_ref->OperandA();
+  auto text = text_obj->string_ref->c_str();
+
+  CURL* curl = curl_easy_init();
+  std::string response;
+  if(curl)
+  {
+      curl_easy_setopt(curl, CURLOPT_URL, text);
+
+      curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlStoreString);
+      curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+      curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0);
+      curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0);
+
+      CURLcode return_code = curl_easy_perform(curl);
+      // return the error code on error
+      if(return_code != CURLE_OK)
+      {
+        response = curl_easy_strerror(return_code);
+      }
+
+      curl_easy_cleanup(curl);
+  }
+
+  process_ref->ccall_return_val->string_ref = new std::string();
+  *process_ref->ccall_return_val->string_ref = response;
+
+  process_ref->TryCollectTempString(text_obj);
+
   return true;
 }
 

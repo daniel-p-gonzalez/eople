@@ -1,0 +1,4 @@
+def main():
+    response = get_url('http://www.example.com')
+    print(response)
+end

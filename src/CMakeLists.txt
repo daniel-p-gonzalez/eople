@@ -8,8 +8,17 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   endif()
 endif()
 
+find_package(CURL)
+if(CURL_FOUND)
+  message(STATUS "Curl libraries found at: ${CURL_LIBRARIES}")
+  message(STATUS "Curl includes found at: ${CURL_INCLUDE_DIRS}")
+else()
+  message(SEND_ERROR "Missing cURL dependency.")
+endif(CURL_FOUND)
+
 add_executable(eople ${eople_SOURCES})
-target_link_libraries(eople -lreadline)
+include_directories(${CURL_INCLUDE_DIRS})
+target_link_libraries(eople -lreadline ${CURL_LIBRARIES})
 
 install(TARGETS eople DESTINATION /usr/local/bin)
 # install(FILES ../icon/eople.png DESTINATION /usr/share/icons)

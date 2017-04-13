@@ -10,6 +10,8 @@
 #include "eople_vm.h"
 #include "utf8.h"
 
+#include <curl/curl.h>
+
 #include <cstdio>
 #include <cstring>
 
@@ -75,6 +77,8 @@ ExecutionEnvironment::ExecutionEnvironment()
 :
   m_type_infer(), m_code_gen(), m_parser(), m_builtins("builtins"), m_repl_module("repl")
 {
+  curl_global_init(CURL_GLOBAL_DEFAULT);
+
   m_vm.Run();
   m_main_process = m_vm.GenerateUniqueProcess();
 
@@ -111,12 +115,12 @@ void ExecutionEnvironment::ImportBuiltins()
   auto print_func = m_builtins.AddFunction( "print", Instruction::PrintF, TypeBuilder::GetPrimitiveType(ValueType::FLOAT),
                                             TypeBuilder::GetNilType() );
   m_builtins.AddFunctionSpecialization( print_func, Instruction::PrintI, TypeBuilder::GetPrimitiveType(ValueType::INT) );
-  m_builtins.AddFunctionSpecialization( print_func, Instruction::PrintS, TypeBuilder::GetPrimitiveType(ValueType::STRING) );
+  m_builtins.AddFunctionSpecialization( print_func, Instruction::PrintS, string_type );
   m_builtins.AddFunctionSpecialization( print_func, Instruction::PrintSArr, array_string_type );
   m_builtins.AddFunctionSpecialization( print_func, Instruction::PrintIArr, array_int_type );
   m_builtins.AddFunctionSpecialization( print_func, Instruction::PrintFArr, array_float_type );
 
-  m_builtins.AddFunction( "get_line", Instruction::GetLine, TypeBuilder::GetPrimitiveType(ValueType::STRING) );
+  m_builtins.AddFunction( "get_line", Instruction::GetLine, string_type );
   m_builtins.AddFunction( "array", Instruction::ArrayConstructor, kind_type, array_type );
 
   auto top_func = m_builtins.AddFunction( "top", Instruction::ArrayTopString, array_string_type, string_type );
@@ -139,9 +143,11 @@ void ExecutionEnvironment::ImportBuiltins()
   m_builtins.AddFunction( "to_float", Instruction::IntToFloat, TypeBuilder::GetPrimitiveType(ValueType::INT), TypeBuilder::GetPrimitiveType(ValueType::FLOAT) );
   m_builtins.AddFunction( "to_int", Instruction::FloatToInt, TypeBuilder::GetPrimitiveType(ValueType::FLOAT), TypeBuilder::GetPrimitiveType(ValueType::INT) );
   auto to_string_func = m_builtins.AddFunction( "to_string", Instruction::IntToString, TypeBuilder::GetPrimitiveType(ValueType::INT),
-                                                              TypeBuilder::GetPrimitiveType(ValueType::STRING) );
+                                                              string_type );
   m_builtins.AddFunctionSpecialization( to_string_func, Instruction::FloatToString, TypeBuilder::GetPrimitiveType(ValueType::FLOAT) );
   m_builtins.AddFunctionSpecialization( to_string_func, Instruction::PromiseToString, promise_type );
+
+  m_builtins.AddFunction( "get_url", Instruction::GetURL, string_type, string_type );
 
   m_ast.modules.push_back( std::move(m_builtins.module) );
 
