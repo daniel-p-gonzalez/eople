@@ -565,7 +565,7 @@ ExpressionNode Parser::ParseArrayDereference( std::string ident )
   auto array_deref = array_deref_node->GetAsArrayDereference();
 
   bool neg = ConsumeExpected('-');
-  array_deref->index = ParseInt(neg);
+  array_deref->index = ParseExpression();
 
   if( !array_deref->index )
   {
