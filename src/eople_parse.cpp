@@ -1664,13 +1664,29 @@ StatementNode Parser::ParseStatement()
   auto ident_node = ParseIdentifier();
   if( ident_node )
   {
+    auto array_deref_node = ParseArrayDereference(ident_node->GetAsIdentifier()->name);
     // is this an assignment?
     if( m_current_token == '=' || (m_current_token >= TOK_ADD_ASSIGN && m_current_token <= TOK_MOD_ASSIGN) )
     {
-      statement = ParseAssignment( std::move(ident_node) );
+      if( array_deref_node )
+      {
+        statement = ParseAssignment( std::move(array_deref_node) );
+      }
+      else
+      {
+        statement = ParseAssignment( std::move(ident_node) );
+      }
       if( statement )
       {
         return statement;
+      }
+    }
+    else if( array_deref_node )
+    {
+      BumpError();
+      if( m_current_token != TOK_NEWLINE )
+      {
+        Log::Error( "(%d): Parse Error: Assignment expected.\n", m_last_error_line );
       }
     }
 

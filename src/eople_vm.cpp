@@ -65,6 +65,8 @@ std::string InstructionToString( InstructionImpl instruction )
   INSTRUCTION_TO_STRING(And)
   INSTRUCTION_TO_STRING(Or)
   INSTRUCTION_TO_STRING(Store)
+  INSTRUCTION_TO_STRING(StoreArrayElement)
+  INSTRUCTION_TO_STRING(StoreArrayStringElement)
   INSTRUCTION_TO_STRING(StringCopy)
   INSTRUCTION_TO_STRING(SpawnProcess)
   INSTRUCTION_TO_STRING(WhenRegister)
@@ -129,6 +131,8 @@ InstructionImpl OpcodeToInstruction( Opcode opcode )
     OPCODE_TO_INSTRUCTION(And);
     OPCODE_TO_INSTRUCTION(Or);
     OPCODE_TO_INSTRUCTION(Store);
+    OPCODE_TO_INSTRUCTION(StoreArrayElement);
+    OPCODE_TO_INSTRUCTION(StoreArrayStringElement);
     OPCODE_TO_INSTRUCTION(StringCopy);
     OPCODE_TO_INSTRUCTION(SpawnProcess);
     OPCODE_TO_INSTRUCTION(WhenRegister);
@@ -741,7 +745,7 @@ void VirtualMachine::ExecuteFunctionIncremental( CallData call_data )
 
     // TODO: make sure this work in any context.
     // Adjust when and whenever captured closures
-    auto adjust_block = 
+    auto adjust_block =
           [old_constants_count, locals_copy_count](std::vector<WhenBlock> &blocks)
           {
             for( auto &block : blocks )
@@ -785,7 +789,7 @@ void VirtualMachine::ExecuteFunctionIncremental( CallData call_data )
     memset( process_ref->stack_base + function->locals_start + old_locals_count, 0, locals_init_count * sizeof(Object) );
     // TODO: make sure this work in any context.
     // Adjust when and whenever captured closures
-    auto adjust_block = 
+    auto adjust_block =
           [old_locals_count, locals_init_count](std::vector<WhenBlock> &blocks)
           {
             for( auto &block : blocks )
@@ -811,7 +815,7 @@ void VirtualMachine::ExecuteFunctionIncremental( CallData call_data )
     memcpy( new_constants, function->constants + old_constants_count, constants_copy_count * sizeof(Object) );
     // TODO: make sure this work in any context.
     // Adjust when and whenever captured closures
-    auto adjust_block = 
+    auto adjust_block =
           [function, old_constants_count, constants_copy_count](std::vector<WhenBlock> &blocks)
           {
             for( auto &block : blocks )
