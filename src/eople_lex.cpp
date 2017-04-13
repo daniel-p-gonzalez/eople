@@ -64,7 +64,7 @@ Token Lexer::NextToken()
   }
 
   if( isalpha(*m_char) )
-  { 
+  {
     m_string = *m_char++;
     while( m_char < m_end && ( isalnum(*(m_char)) || *m_char == '_' || (*m_char == ':' && *(m_char+1) == ':') ) )
     {
