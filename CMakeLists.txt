@@ -8,7 +8,5 @@ set(VERSION_MINOR "2")
 set(VERSION_PATCH "0")
 set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 
-set(CMAKE_BUILD_TYPE "Release")
-
 include_directories("${eople_SOURCE_DIR}/inc")
 add_subdirectory(src)
