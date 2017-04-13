@@ -12,6 +12,7 @@ bool PrintS( process_t process_ref );
 bool PrintIArr( process_t process_ref );
 bool PrintFArr( process_t process_ref );
 bool PrintSArr( process_t process_ref );
+bool PrintSPromise( process_t process_ref );
 bool GetLine( process_t process_ref );
 bool ArrayConstructor( process_t process_ref );
 bool ArrayPush( process_t process_ref );
@@ -36,6 +37,7 @@ bool FloatToString( process_t process_ref );
 bool PromiseToString( process_t process_ref );
 
 bool GetURL( process_t process_ref );
+bool GetURL_USERPWD( process_t process_ref );
 
 } // namespace Instruction
 } // namespace Eople

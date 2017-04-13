@@ -40,6 +40,14 @@ bool PrintS( process_t process_ref )
   return true;
 }
 
+bool PrintSPromise( process_t process_ref )
+{
+  promise_t promise = process_ref->OperandA()->promise;
+
+  std::cout << *promise->value.string_ref << std::endl;
+  return true;
+}
+
 bool PrintSArr( process_t process_ref )
 {
   auto array_ref = process_ref->OperandA()->array_ref;
@@ -339,8 +347,47 @@ bool GetURL( process_t process_ref )
 
       curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlStoreString);
       curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-      curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0);
-      curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0);
+      curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+      curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+      curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+
+      CURLcode return_code = curl_easy_perform(curl);
+      // return the error code on error
+      if(return_code != CURLE_OK)
+      {
+        response = curl_easy_strerror(return_code);
+      }
+
+      curl_easy_cleanup(curl);
+  }
+
+  process_ref->ccall_return_val->string_ref = new std::string();
+  *process_ref->ccall_return_val->string_ref = response;
+
+  process_ref->TryCollectTempString(text_obj);
+
+  return true;
+}
+
+bool GetURL_USERPWD( process_t process_ref )
+{
+  Object* text_obj = process_ref->OperandA();
+  Object* usr_pwd_obj = process_ref->OperandB();
+  auto text = text_obj->string_ref->c_str();
+  auto usr_pwd = usr_pwd_obj->string_ref->c_str();
+
+  CURL* curl = curl_easy_init();
+  std::string response;
+  if(curl)
+  {
+      curl_easy_setopt(curl, CURLOPT_URL, text);
+
+      curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlStoreString);
+      curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+      curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+      curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+      curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+      curl_easy_setopt(curl, CURLOPT_USERPWD, usr_pwd);
 
       CURLcode return_code = curl_easy_perform(curl);
       // return the error code on error

@@ -77,7 +77,7 @@ ExecutionEnvironment::ExecutionEnvironment()
 :
   m_type_infer(), m_code_gen(), m_parser(), m_builtins("builtins"), m_repl_module("repl")
 {
-  curl_global_init(CURL_GLOBAL_DEFAULT);
+  curl_global_init(CURL_GLOBAL_ALL);
 
   m_vm.Run();
   m_main_process = m_vm.GenerateUniqueProcess();
@@ -105,6 +105,7 @@ void ExecutionEnvironment::ImportBuiltins()
   auto array_type   = TypeBuilder::GetArrayType(any_type);
   auto kind_type    = TypeBuilder::GetKindType(any_type);
   auto promise_type = TypeBuilder::GetPromiseType(any_type);
+  auto promise_string_type = TypeBuilder::GetPromiseType(string_type);
 
   auto array_string_type   = TypeBuilder::GetArrayType(string_type);
   auto array_int_type      = TypeBuilder::GetArrayType(int_type);
@@ -119,6 +120,7 @@ void ExecutionEnvironment::ImportBuiltins()
   m_builtins.AddFunctionSpecialization( print_func, Instruction::PrintSArr, array_string_type );
   m_builtins.AddFunctionSpecialization( print_func, Instruction::PrintIArr, array_int_type );
   m_builtins.AddFunctionSpecialization( print_func, Instruction::PrintFArr, array_float_type );
+  m_builtins.AddFunctionSpecialization( print_func, Instruction::PrintSPromise, promise_string_type );
 
   m_builtins.AddFunction( "get_line", Instruction::GetLine, string_type );
   m_builtins.AddFunction( "array", Instruction::ArrayConstructor, kind_type, array_type );
@@ -148,6 +150,7 @@ void ExecutionEnvironment::ImportBuiltins()
   m_builtins.AddFunctionSpecialization( to_string_func, Instruction::PromiseToString, promise_type );
 
   m_builtins.AddFunction( "get_url", Instruction::GetURL, string_type, string_type );
+  m_builtins.AddFunction( "get_url_creds", Instruction::GetURL_USERPWD, string_type, string_type, string_type );
 
   m_ast.modules.push_back( std::move(m_builtins.module) );
 

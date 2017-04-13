@@ -1,4 +1,30 @@
+class NLU():
+    base_url = 'https://gateway.watsonplatform.net/natural-language-understanding/api/v1/analyze?version=2017-02-27'
+
+    def keywords(user_pwd, url):
+        response = get_url_creds(base_url + '&features=keywords&keywords.limit=5&url=' + url, user_pwd)
+        return response
+    end
+
+    def sentiment(user_pwd, url):
+        response = get_url_creds(base_url + '&features=sentiment&url=' + url, user_pwd)
+        return response
+    end
+end
+
 def main():
-    response = get_url('http://www.example.com')
-    print(response)
+    user_pwd = 'USER:PASSWORD'
+    url = 'https://en.wikipedia.org/wiki/Tesla,_Inc.'
+
+    nlu = NLU()
+
+    keywords = nlu->keywords(user_pwd, url)
+    when keywords:
+        print( keywords )
+    end
+
+    sentiment = nlu->sentiment(user_pwd, url)
+    when sentiment:
+        print( sentiment )
+    end
 end
