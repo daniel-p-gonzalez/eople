@@ -479,6 +479,14 @@ InferenceState TypeInfer::PropagateType( Node::ArrayLiteral* array_literal, type
   return array_type;
 }
 
+InferenceState TypeInfer::PropagateType( Node::DictLiteral* dict_literal, type_t )
+{
+  InferenceState dict_type;
+  dict_type.type = TypeBuilder::GetDictType();
+  dict_type.clear = true;
+  return dict_type;
+}
+
 InferenceState TypeInfer::PropagateType( Node::BinaryOp* binary_op, type_t type )
 {
   InferenceState state;

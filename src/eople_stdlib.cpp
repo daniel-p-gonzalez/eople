@@ -114,6 +114,28 @@ bool PrintIArr( process_t process_ref )
   return true;
 }
 
+bool PrintDict( process_t process_ref )
+{
+  auto dict_ref = process_ref->OperandA()->dict_ref;
+  assert(dict_ref);
+
+  std::cout << "{";
+
+  size_t i = 0;
+  for( auto it : *dict_ref )
+  {
+    if( i != 0 )
+    {
+      std::cout << ", ";
+    }
+    std::cout << "\'" << it.first << "\':" << *it.second.string_ref;
+    ++i;
+  }
+  std::cout << "}" << std::endl;
+
+  return true;
+}
+
 //bool GetLine( process_t process_ref )
 //{
 //  promise_t &promise = process_ref->ccall_return_val->promise;

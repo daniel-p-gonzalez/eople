@@ -111,8 +111,26 @@ namespace Node
     auto identifier    = expr->GetAsIdentifier();
     auto literal       = expr->GetAsLiteral();
     auto array_literal = expr->GetAsArrayLiteral();
+    auto dict_literal = expr->GetAsDictLiteral();
 
-    std::string key = identifier ? identifier->name : (array_literal ? array_literal->ident->GetAsIdentifier()->name : (literal ? literal->value_string : ""));
+    std::string key = "";
+    if( identifier )
+    {
+      key = identifier->name;
+    }
+    else if(array_literal)
+    {
+      key = array_literal->ident->GetAsIdentifier()->name;
+    }
+    else if(dict_literal)
+    {
+      key = dict_literal->ident->GetAsIdentifier()->name;
+    }
+    else if( literal )
+    {
+      key = literal->value_string;
+    }
+
     return GetTableEntryForName(key);
   }
 
@@ -143,10 +161,28 @@ namespace Node
     auto identifier    = expr->GetAsIdentifier();
     auto literal       = expr->GetAsLiteral();
     auto array_literal = expr->GetAsArrayLiteral();
+    auto dict_literal = expr->GetAsDictLiteral();
 
     depth = 0;
 
-    std::string key = identifier ? identifier->name : (array_literal ? array_literal->ident->GetAsIdentifier()->name : (literal ? literal->value_string : ""));
+    std::string key = "";
+    if( identifier )
+    {
+      key = identifier->name;
+    }
+    else if(array_literal)
+    {
+      key = array_literal->ident->GetAsIdentifier()->name;
+    }
+    else if(dict_literal)
+    {
+      key = dict_literal->ident->GetAsIdentifier()->name;
+    }
+    else if( literal )
+    {
+      key = literal->value_string;
+    }
+
     return GetEntryIdForName(key, depth);
   }
 
@@ -296,10 +332,11 @@ namespace Node
     auto literal       = expr->GetAsLiteral();
     auto array_literal = expr->GetAsArrayLiteral();
     auto array_deref = expr->GetAsArrayDereference();
+    auto dict_literal = expr->GetAsDictLiteral();
     auto function_call = expr->GetAsFunctionCall();
     auto process_call   = expr->GetAsProcessMessage();
 
-    if(identifier || literal || array_literal || array_deref)
+    if(identifier || literal || array_literal || array_deref || dict_literal)
     {
       u32 match_depth;
       EntryId entry_id = array_deref ? GetEntryIdForName(array_deref->ident->GetAsIdentifier()->name, match_depth) :

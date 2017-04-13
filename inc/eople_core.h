@@ -6,6 +6,7 @@
 #include <new>
 #include <atomic>
 #include <map>
+#include <unordered_map>
 #include <memory>
 
 #include <cassert>
@@ -27,6 +28,7 @@ typedef Promise*             promise_t;
 typedef Function*            function_t;
 typedef std::string*         string_t;
 typedef std::vector<Object>* array_t;
+typedef std::unordered_map<std::string, Object>* dict_t;
 
 
 // order matters - eople_parse.cpp:ParseType
@@ -317,6 +319,11 @@ enum class Opcode
   ReturnValue,
   PrintI,
   PrintF,
+  PrintIArr,
+  PrintFArr,
+  PrintSArr,
+  PrintSPromise,
+  PrintDict,
   FunctionCall,
   ArrayDeref,
   ProcessMessage,
@@ -389,6 +396,7 @@ struct Object
     promise_t     promise;
     string_t      string_ref;
     array_t       array_ref;
+    dict_t        dict_ref;
     type_t        type;
     float_t       float_val;
     int_t         int_val;
@@ -467,6 +475,28 @@ struct Object
     array_object.array_ref = new std::vector<Object>();
 
     return array_object;
+  }
+
+  void SetDict( dict_t val )
+  {
+    object_type = (u8)ValueType::DICT;
+    dict_ref = val;
+  }
+
+  static Object GetDict( dict_t val )
+  {
+    Object dict_object;
+    dict_object.SetDict(val);
+
+    return dict_object;
+  }
+
+  static Object GetDict()
+  {
+    Object dict_object;
+    dict_object.dict_ref = new std::unordered_map<std::string, Object>();
+
+    return dict_object;
   }
 
   static Object GetInt( int_t val )
