@@ -49,6 +49,7 @@ private:
   ExpressionNode   ParseType();
   ExpressionNode   ParseArrayLiteral();
   ExpressionNode   ParseArrayDereference( std::string ident );
+  ExpressionNode   ParseDictLiteral();
   ExpressionNode   ParseFloat(bool negative);
   ExpressionNode   ParseInt(bool negative);
   ExpressionNode   ParseBool();

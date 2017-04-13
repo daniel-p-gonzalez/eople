@@ -42,6 +42,7 @@ enum class ValueType
   FUNCTION,
   PROMISE,
   ARRAY,
+  DICT,
   TYPE,
   ANY,
 };
@@ -52,6 +53,7 @@ struct ProcessType;
 struct FunctionType;
 struct PromiseType;
 struct ArrayType;
+struct DictType;
 struct KindType;
 struct AnyType;
 typedef Type* type_t;
@@ -104,6 +106,11 @@ struct TypeBuilder
   static type_t GetArrayType( type_t inner_type = GetPrimitiveType(ValueType::NIL) )
   {
     return GetType<ArrayType>(inner_type, array_types);
+  }
+
+  static type_t GetDictType()
+  {
+    return GetPrimitiveType(ValueType::DICT);
   }
 
   static type_t GetKindType( type_t inner_type = GetPrimitiveType(ValueType::NIL) )
