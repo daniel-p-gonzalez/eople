@@ -3,9 +3,45 @@
 #include "optionparser.h"
 #include <cstdio>
 #include <cstdarg>
+#include <cstdlib>
 #include <iostream>
 #include <vector>
 #include <thread>
+#include <readline/readline.h>
+#include <readline/history.h>
+
+static std::string GetHistoryFilePath()
+{
+  std::string home = getenv("HOME");
+  return home + "/.eople_history";
+}
+
+static void InitReadlineHistory()
+{
+  using_history();
+  read_history(GetHistoryFilePath().c_str());
+}
+
+static void SaveReadlineHistory()
+{
+  write_history(GetHistoryFilePath().c_str());
+  history_truncate_file(GetHistoryFilePath().c_str(), 1000);
+}
+
+static std::string GetLine(std::string prefix="")
+{
+  std::string line;
+
+  char* input = readline(prefix.c_str());
+  line = input;
+  if(!line.empty())
+  {
+    add_history(input);
+  }
+  free(input);
+
+  return line;
+}
 
 static int Eve( std::string filename, std::string entry_function, bool verbose )
 {
@@ -29,26 +65,19 @@ static int Eve( std::string filename, std::string entry_function, bool verbose )
     Eople::Log::Print("\n");
     for(;;)
     {
-      Eople::Log::Print(">>> ");
-
-      std::string command;
-      std::getline(std::cin, command);
+      std::string command = GetLine(">>> ");
       if( !command.empty() && command.back() == ':' )
       {
-        std::string line;
-        Eople::Log::Print("... ");
-        std::getline(std::cin, line);
+        std::string line = GetLine("... ");
         while( !line.empty() )
         {
           command += '\n' + line;
-          Eople::Log::Print("... ");
-          std::getline(std::cin, line);
+          line = GetLine("... ");
         }
       }
 
       if( command == "exit()" || command == "quit()" )
       {
-        Eople::Log::Print("Waiting for queued tasks to finish...\n");
         ee.Shutdown();
         return 0;
       }
@@ -173,6 +202,9 @@ static int Eve( std::string filename, std::string entry_function, bool verbose )
 
 int main(int argc, char* argv[])
 {
+  InitReadlineHistory();
+  std::atexit(SaveReadlineHistory);
+
   enum  optionIndex { UNKNOWN, HELP, VERBOSE, VERSION };
   const option::Descriptor usage[] =
   {
