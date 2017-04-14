@@ -102,6 +102,7 @@ void ExecutionEnvironment::ImportBuiltins()
   auto float_type   = TypeBuilder::GetPrimitiveType(ValueType::FLOAT);
   auto bool_type    = TypeBuilder::GetBoolType();
   auto any_type     = TypeBuilder::GetAnyType();
+  auto nil_type     = TypeBuilder::GetNilType();
   auto array_type   = TypeBuilder::GetArrayType(any_type);
   auto dict_type    = TypeBuilder::GetDictType();
   auto kind_type    = TypeBuilder::GetKindType(any_type);
@@ -123,6 +124,7 @@ void ExecutionEnvironment::ImportBuiltins()
   m_builtins.AddFunctionSpecialization( print_func, Instruction::PrintFArr, array_float_type );
   m_builtins.AddFunctionSpecialization( print_func, Instruction::PrintSPromise, promise_string_type );
   m_builtins.AddFunctionSpecialization( print_func, Instruction::PrintDict, dict_type );
+  m_builtins.AddFunctionSpecialization( print_func, Instruction::PrintObject, any_type );
 
   m_builtins.AddFunction( "get_line", Instruction::GetLine, string_type );
   m_builtins.AddFunction( "array", Instruction::ArrayConstructor, kind_type, array_type );

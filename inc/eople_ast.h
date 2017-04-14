@@ -843,6 +843,10 @@ public:
     {
       static_cast<BASECLASS_T*>(this)->Process(array_literal);
     }
+    else if( dict_literal )
+    {
+      static_cast<BASECLASS_T*>(this)->Process(dict_literal);
+    }
     else if( binary_op )
     {
       static_cast<BASECLASS_T*>(this)->Process(binary_op);

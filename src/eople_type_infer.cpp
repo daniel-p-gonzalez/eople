@@ -22,6 +22,7 @@ const char* StringFromValueType( ValueType val_type )
     TOKEN_STRING_CASE(ValueType::BOOL,     "bool");
     TOKEN_STRING_CASE(ValueType::NIL,      "nil");
     TOKEN_STRING_CASE(ValueType::STRING,   "string");
+    TOKEN_STRING_CASE(ValueType::DICT,     "dict");
     TOKEN_STRING_CASE(ValueType::PROCESS,  "process");
     TOKEN_STRING_CASE(ValueType::PROMISE,  "promise");
     TOKEN_STRING_CASE(ValueType::ARRAY,    "array");

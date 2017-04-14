@@ -426,9 +426,6 @@ size_t ByteCodeGen::GenExpressionTerm( Node::DictLiteral* dict_literal, bool )
     }
   }
 
-  for(auto it : (*dict_object->dict_ref)) 
-    std::cout << " " << it.first << ":" << *it.second.string_ref;
-
   return stack_index;
 }
 

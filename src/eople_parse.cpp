@@ -619,7 +619,7 @@ ExpressionNode Parser::ParseType()
     return nullptr;
   }
 
-  static const char* type_list[] = { "float", "int", "bool", "string", "struct", "process", "function", "promise" };
+  static const char* type_list[] = { "float", "int", "bool", "string", "dict", "struct", "process", "function", "promise" };
   static const size_t type_count = _countof(type_list);
 
   ValueType type = ValueType::NIL;

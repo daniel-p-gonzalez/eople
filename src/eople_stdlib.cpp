@@ -128,10 +128,47 @@ bool PrintDict( process_t process_ref )
     {
       std::cout << ", ";
     }
-    std::cout << "\'" << it.first << "\':" << *it.second.string_ref;
+    std::cout << "\'" << it.first << "\':";
+    if( it.second.object_type == (u8)ValueType::STRING )
+    {
+      std::cout << *it.second.string_ref;
+    }
+    else if( it.second.object_type == (u8)ValueType::INT )
+    {
+      std::cout << it.second.int_val;
+    }
+    else if( it.second.object_type == (u8)ValueType::FLOAT )
+    {
+      std::cout << it.second.float_val;
+    }
+
     ++i;
   }
   std::cout << "}" << std::endl;
+
+  return true;
+}
+
+bool PrintObject( process_t process_ref )
+{
+  auto obj_ref = process_ref->OperandA();
+  assert(obj_ref);
+
+  std::ostringstream string_stream;
+  if( obj_ref->object_type == (u8)ValueType::STRING )
+  {
+    string_stream << *obj_ref->string_ref;
+  }
+  else if( obj_ref->object_type == (u8)ValueType::INT )
+  {
+    string_stream << obj_ref->int_val;
+  }
+  else if( obj_ref->object_type == (u8)ValueType::FLOAT )
+  {
+    string_stream << obj_ref->float_val;
+  }
+
+  std::cout << string_stream.str() << std::endl;
 
   return true;
 }
@@ -256,12 +293,24 @@ bool ArrayClear( process_t process_ref )
 
 bool ArrayDeref( process_t process_ref )
 {
-  auto& array_ref = *process_ref->OperandA()->array_ref;
-  int_t index = process_ref->OperandB()->int_val;
-  auto result = process_ref->OperandC();
+  auto object = process_ref->OperandA();
+  if(object->object_type == (u8)ValueType::ARRAY)
+  {
+    auto& array_ref = *process_ref->OperandA()->array_ref;
+    int_t index = process_ref->OperandB()->int_val;
+    auto result = process_ref->OperandC();
 
-  assert(index < array_ref.size());
-  *result = array_ref[index];
+    assert(index < array_ref.size());
+    *result = array_ref[index];
+  }
+  else if(object->object_type == (u8)ValueType::DICT)
+  {
+    auto& dict_ref = *process_ref->OperandA()->dict_ref;
+    std::string key = *process_ref->OperandB()->string_ref;
+    auto result = process_ref->OperandC();
+
+    *result = dict_ref[key];
+  }
 
   return true;
 }

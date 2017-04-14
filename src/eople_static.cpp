@@ -16,6 +16,7 @@ TypeBuilder::PrimitiveTypeVector BuildPrimitiveTypes()
   types.push_back( std::unique_ptr<Type>(new Type(ValueType::INT)) );
   types.push_back( std::unique_ptr<Type>(new Type(ValueType::BOOL)) );
   types.push_back( std::unique_ptr<Type>(new Type(ValueType::STRING)) );
+  types.push_back( std::unique_ptr<Type>(new Type(ValueType::DICT)) );
 
   return types;
 }
