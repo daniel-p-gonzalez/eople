@@ -131,7 +131,7 @@ bool PrintDict( process_t process_ref )
     std::cout << "\'" << it.first << "\':";
     if( it.second.object_type == (u8)ValueType::STRING )
     {
-      std::cout << *it.second.string_ref;
+      std::cout << "\"" << *it.second.string_ref << "\"";
     }
     else if( it.second.object_type == (u8)ValueType::INT )
     {
@@ -407,35 +407,53 @@ size_t CurlStoreString(void* contents, size_t size, size_t nmemb, std::string* o
 
 bool GetURL( process_t process_ref )
 {
+  auto dict_ref = process_ref->OperandA()->dict_ref;
+  assert(dict_ref);
+
+  auto &request = *dict_ref;
+
   Object* text_obj = process_ref->OperandA();
-  auto text = text_obj->string_ref->c_str();
+  auto text = request["url"].string_ref->c_str();
 
   CURL* curl = curl_easy_init();
-  std::string response;
+  std::string body;
+  std::string status = "OK";
+  std::string usr_pwd;
+
+  if( request.find("creds") != request.end() )
+  {
+    usr_pwd = *request["creds"].string_ref;
+  }
   if(curl)
   {
       curl_easy_setopt(curl, CURLOPT_URL, text);
 
       curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlStoreString);
-      curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+      curl_easy_setopt(curl, CURLOPT_WRITEDATA, &body);
       curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
       curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
       curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+      if( !usr_pwd.empty() )
+      {
+        curl_easy_setopt(curl, CURLOPT_USERPWD, usr_pwd.c_str());
+      }
 
       CURLcode return_code = curl_easy_perform(curl);
       // return the error code on error
       if(return_code != CURLE_OK)
       {
-        response = curl_easy_strerror(return_code);
+        status = curl_easy_strerror(return_code);
       }
 
       curl_easy_cleanup(curl);
   }
 
-  process_ref->ccall_return_val->string_ref = new std::string();
-  *process_ref->ccall_return_val->string_ref = response;
-
-  process_ref->TryCollectTempString(text_obj);
+  process_ref->ccall_return_val->dict_ref = new std::unordered_map<std::string, Object>;
+  auto &dict = *process_ref->ccall_return_val->dict_ref;
+  dict["status"] = Object::GetString(new std::string());
+  *dict["status"].string_ref = status;
+  dict["body"] = Object::GetString(new std::string());
+  *dict["body"].string_ref = body;
 
   return true;
 }

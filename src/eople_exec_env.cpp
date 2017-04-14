@@ -153,7 +153,7 @@ void ExecutionEnvironment::ImportBuiltins()
   m_builtins.AddFunctionSpecialization( to_string_func, Instruction::FloatToString, TypeBuilder::GetPrimitiveType(ValueType::FLOAT) );
   m_builtins.AddFunctionSpecialization( to_string_func, Instruction::PromiseToString, promise_type );
 
-  m_builtins.AddFunction( "get_url", Instruction::GetURL, string_type, string_type );
+  m_builtins.AddFunction( "get_url", Instruction::GetURL, dict_type, dict_type );
   m_builtins.AddFunction( "get_url_creds", Instruction::GetURL_USERPWD, string_type, string_type, string_type );
 
   m_ast.modules.push_back( std::move(m_builtins.module) );
