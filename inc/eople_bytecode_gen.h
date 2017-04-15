@@ -57,6 +57,7 @@ private:
   size_t GenExpressionTerm( Node::ProcessMessage* process_message, bool is_root );
   size_t GenExpressionTerm( Node::ArrayLiteral* array_literal, bool is_root );
   size_t GenExpressionTerm( Node::ArrayDereference* array_dereference, bool is_root );
+  size_t GenExpressionTerm( Node::DictLiteral* dict_literal, bool is_root );
 
   size_t GenForInit( Node::ForInit* node );
 

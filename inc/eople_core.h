@@ -6,6 +6,7 @@
 #include <new>
 #include <atomic>
 #include <map>
+#include <unordered_map>
 #include <memory>
 
 #include <cassert>
@@ -27,9 +28,10 @@ typedef Promise*             promise_t;
 typedef Function*            function_t;
 typedef std::string*         string_t;
 typedef std::vector<Object>* array_t;
+typedef std::unordered_map<std::string, Object>* dict_t;
 
 
-// order matters - eople_parse.cpp:ParseType
+// order matters: eople_parse.cpp:ParseType and eople_static.cpp:BuildPrimitiveTypes
 enum class ValueType
 {
   NIL = 0,
@@ -37,12 +39,12 @@ enum class ValueType
   INT,
   BOOL,
   STRING,
+  DICT,
   STRUCT,
   PROCESS,
   FUNCTION,
   PROMISE,
   ARRAY,
-  DICT,
   TYPE,
   ANY,
 };
@@ -63,7 +65,7 @@ struct TypeBuilder
 {
   static type_t GetPrimitiveType( ValueType type )
   {
-    assert((size_t)type <= (size_t)ValueType::STRING);
+    assert((size_t)type <= (size_t)ValueType::DICT);
 
     return primitive_types[(size_t)type].get();
   }
@@ -88,6 +90,11 @@ struct TypeBuilder
     return GetPrimitiveType(ValueType::FLOAT);
   }
 
+  static type_t GetDictType()
+  {
+    return GetPrimitiveType(ValueType::DICT);
+  }
+
   static type_t GetProcessType( std::string class_name )
   {
     return GetType<ProcessType>(class_name, process_types);
@@ -106,11 +113,6 @@ struct TypeBuilder
   static type_t GetArrayType( type_t inner_type = GetPrimitiveType(ValueType::NIL) )
   {
     return GetType<ArrayType>(inner_type, array_types);
-  }
-
-  static type_t GetDictType()
-  {
-    return GetPrimitiveType(ValueType::DICT);
   }
 
   static type_t GetKindType( type_t inner_type = GetPrimitiveType(ValueType::NIL) )
@@ -167,6 +169,10 @@ struct Type
 
   virtual type_t GetVaryingType()
   {
+    if(type == ValueType::DICT)
+    {
+      return TypeBuilder::GetAnyType();
+    }
     return TypeBuilder::GetNilType();
   }
 
@@ -317,6 +323,11 @@ enum class Opcode
   ReturnValue,
   PrintI,
   PrintF,
+  PrintIArr,
+  PrintFArr,
+  PrintSArr,
+  PrintSPromise,
+  PrintDict,
   FunctionCall,
   ArrayDeref,
   ProcessMessage,
@@ -389,6 +400,7 @@ struct Object
     promise_t     promise;
     string_t      string_ref;
     array_t       array_ref;
+    dict_t        dict_ref;
     type_t        type;
     float_t       float_val;
     int_t         int_val;
@@ -433,11 +445,13 @@ struct Object
 
   void SetFunction( Function* in_function )
   {
+    object_type = (u8)ValueType::FUNCTION;
     function = in_function;
   }
 
   void SetProcess( process_t in_process )
   {
+    object_type = (u8)ValueType::PROCESS;
     process_ref = in_process;
   }
 
@@ -465,8 +479,32 @@ struct Object
   {
     Object array_object;
     array_object.array_ref = new std::vector<Object>();
+    array_object.object_type = (u8)ValueType::ARRAY;
 
     return array_object;
+  }
+
+  void SetDict( dict_t val )
+  {
+    object_type = (u8)ValueType::DICT;
+    dict_ref = val;
+  }
+
+  static Object GetDict( dict_t val )
+  {
+    Object dict_object;
+    dict_object.SetDict(val);
+
+    return dict_object;
+  }
+
+  static Object GetDict()
+  {
+    Object dict_object;
+    dict_object.dict_ref = new std::unordered_map<std::string, Object>();
+    dict_object.object_type = (u8)ValueType::DICT;
+
+    return dict_object;
   }
 
   static Object GetInt( int_t val )

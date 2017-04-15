@@ -2,6 +2,8 @@
 #include "eople_stdlib.h"
 #include "eople_vm.h"
 
+#include <curl/curl.h>
+
 #include <iostream>
 #include <cstdio>
 #include <thread>
@@ -15,7 +17,7 @@ namespace Instruction
 bool PrintI( process_t process_ref )
 {
   Object* result = process_ref->OperandA();
-  Log::Print("%d\n", result->int_val);
+  std::cout << result->int_val << std::endl;
 
   return true;
 }
@@ -23,7 +25,7 @@ bool PrintI( process_t process_ref )
 bool PrintF( process_t process_ref )
 {
   Object* result = process_ref->OperandA();
-  Log::Print("%f\n", result->float_val);
+  std::cout << result->float_val << std::endl;
 
   return true;
 }
@@ -31,10 +33,18 @@ bool PrintF( process_t process_ref )
 bool PrintS( process_t process_ref )
 {
   Object* text = process_ref->OperandA();
-  Log::Print("%s\n", text->string_ref->c_str());
+  std::cout << *text->string_ref << std::endl;
 
   process_ref->TryCollectTempString(text);
 
+  return true;
+}
+
+bool PrintSPromise( process_t process_ref )
+{
+  promise_t promise = process_ref->OperandA()->promise;
+
+  std::cout << *promise->value.string_ref << std::endl;
   return true;
 }
 
@@ -43,7 +53,7 @@ bool PrintSArr( process_t process_ref )
   auto array_ref = process_ref->OperandA()->array_ref;
   assert(array_ref);
 
-  Log::Print("[");
+  std::cout << "[";
 
   for( size_t i = 0; i < array_ref->size(); ++i )
   {
@@ -51,11 +61,11 @@ bool PrintSArr( process_t process_ref )
 
     if( i != 0 )
     {
-      Log::Print(", ");
+      std::cout << ", ";
     }
-    Log::Print("\'%s\'", element.string_ref->c_str());
+    std::cout << "\'" << *element.string_ref << "\'";
   }
-  Log::Print("]\n");
+  std::cout << "]" << std::endl;
 
   return true;
 }
@@ -65,7 +75,7 @@ bool PrintFArr( process_t process_ref )
   auto array_ref = process_ref->OperandA()->array_ref;
   assert(array_ref);
 
-  Log::Print("[");
+  std::cout << "[";
 
   for( size_t i = 0; i < array_ref->size(); ++i )
   {
@@ -73,11 +83,11 @@ bool PrintFArr( process_t process_ref )
 
     if( i != 0 )
     {
-      Log::Print(", ");
+      std::cout << ", ";
     }
-    Log::Print("%f", element.float_val);
+    std::cout << element.float_val;
   }
-  Log::Print("]\n");
+  std::cout << "]" << std::endl;
 
   return true;
 }
@@ -87,7 +97,7 @@ bool PrintIArr( process_t process_ref )
   auto array_ref = process_ref->OperandA()->array_ref;
   assert(array_ref);
 
-  Log::Print("[");
+  std::cout << "[";
 
   for( size_t i = 0; i < array_ref->size(); ++i )
   {
@@ -95,11 +105,70 @@ bool PrintIArr( process_t process_ref )
 
     if( i != 0 )
     {
-      Log::Print(", ");
+      std::cout << ", ";
     }
-    Log::Print("%d", element.int_val);
+    std::cout << element.int_val;
   }
-  Log::Print("]\n");
+  std::cout << "]" << std::endl;
+
+  return true;
+}
+
+bool PrintDict( process_t process_ref )
+{
+  auto dict_ref = process_ref->OperandA()->dict_ref;
+  assert(dict_ref);
+
+  std::cout << "{";
+
+  size_t i = 0;
+  for( auto it : *dict_ref )
+  {
+    if( i != 0 )
+    {
+      std::cout << ", ";
+    }
+    std::cout << "\'" << it.first << "\':";
+    if( it.second.object_type == (u8)ValueType::STRING )
+    {
+      std::cout << "\"" << *it.second.string_ref << "\"";
+    }
+    else if( it.second.object_type == (u8)ValueType::INT )
+    {
+      std::cout << it.second.int_val;
+    }
+    else if( it.second.object_type == (u8)ValueType::FLOAT )
+    {
+      std::cout << it.second.float_val;
+    }
+
+    ++i;
+  }
+  std::cout << "}" << std::endl;
+
+  return true;
+}
+
+bool PrintObject( process_t process_ref )
+{
+  auto obj_ref = process_ref->OperandA();
+  assert(obj_ref);
+
+  std::ostringstream string_stream;
+  if( obj_ref->object_type == (u8)ValueType::STRING )
+  {
+    string_stream << *obj_ref->string_ref;
+  }
+  else if( obj_ref->object_type == (u8)ValueType::INT )
+  {
+    string_stream << obj_ref->int_val;
+  }
+  else if( obj_ref->object_type == (u8)ValueType::FLOAT )
+  {
+    string_stream << obj_ref->float_val;
+  }
+
+  std::cout << string_stream.str() << std::endl;
 
   return true;
 }
@@ -224,12 +293,24 @@ bool ArrayClear( process_t process_ref )
 
 bool ArrayDeref( process_t process_ref )
 {
-  auto& array_ref = *process_ref->OperandA()->array_ref;
-  int_t index = process_ref->OperandB()->int_val;
-  auto result = process_ref->OperandC();
+  auto object = process_ref->OperandA();
+  if(object->object_type == (u8)ValueType::ARRAY)
+  {
+    auto& array_ref = *process_ref->OperandA()->array_ref;
+    int_t index = process_ref->OperandB()->int_val;
+    auto result = process_ref->OperandC();
 
-  assert(index < array_ref.size());
-  *result = array_ref[index];
+    assert(index < array_ref.size());
+    *result = array_ref[index];
+  }
+  else if(object->object_type == (u8)ValueType::DICT)
+  {
+    auto& dict_ref = *process_ref->OperandA()->dict_ref;
+    std::string key = *process_ref->OperandB()->string_ref;
+    auto result = process_ref->OperandC();
+
+    *result = dict_ref[key];
+  }
 
   return true;
 }
@@ -315,6 +396,103 @@ bool PromiseToString( process_t process_ref )
 
   process_ref->ccall_return_val->string_ref = new std::string();
   *process_ref->ccall_return_val->string_ref = string_stream.str();
+  return true;
+}
+
+size_t CurlStoreString(void* contents, size_t size, size_t nmemb, std::string* out_string)
+{
+  *out_string += (char*)contents;
+  return size * nmemb;
+}
+
+bool GetURL( process_t process_ref )
+{
+  auto dict_ref = process_ref->OperandA()->dict_ref;
+  assert(dict_ref);
+
+  auto &request = *dict_ref;
+
+  Object* text_obj = process_ref->OperandA();
+  auto text = request["url"].string_ref->c_str();
+
+  CURL* curl = curl_easy_init();
+  std::string body;
+  std::string status = "OK";
+  std::string usr_pwd;
+
+  if( request.find("creds") != request.end() )
+  {
+    usr_pwd = *request["creds"].string_ref;
+  }
+  if(curl)
+  {
+      curl_easy_setopt(curl, CURLOPT_URL, text);
+
+      curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlStoreString);
+      curl_easy_setopt(curl, CURLOPT_WRITEDATA, &body);
+      curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+      curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+      curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+      if( !usr_pwd.empty() )
+      {
+        curl_easy_setopt(curl, CURLOPT_USERPWD, usr_pwd.c_str());
+      }
+
+      CURLcode return_code = curl_easy_perform(curl);
+      // return the error code on error
+      if(return_code != CURLE_OK)
+      {
+        status = curl_easy_strerror(return_code);
+      }
+
+      curl_easy_cleanup(curl);
+  }
+
+  process_ref->ccall_return_val->dict_ref = new std::unordered_map<std::string, Object>;
+  auto &dict = *process_ref->ccall_return_val->dict_ref;
+  dict["status"] = Object::GetString(new std::string());
+  *dict["status"].string_ref = status;
+  dict["body"] = Object::GetString(new std::string());
+  *dict["body"].string_ref = body;
+
+  return true;
+}
+
+bool GetURL_USERPWD( process_t process_ref )
+{
+  Object* text_obj = process_ref->OperandA();
+  Object* usr_pwd_obj = process_ref->OperandB();
+  auto text = text_obj->string_ref->c_str();
+  auto usr_pwd = usr_pwd_obj->string_ref->c_str();
+
+  CURL* curl = curl_easy_init();
+  std::string response;
+  if(curl)
+  {
+      curl_easy_setopt(curl, CURLOPT_URL, text);
+
+      curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlStoreString);
+      curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+      curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+      curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+      curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+      curl_easy_setopt(curl, CURLOPT_USERPWD, usr_pwd);
+
+      CURLcode return_code = curl_easy_perform(curl);
+      // return the error code on error
+      if(return_code != CURLE_OK)
+      {
+        response = curl_easy_strerror(return_code);
+      }
+
+      curl_easy_cleanup(curl);
+  }
+
+  process_ref->ccall_return_val->string_ref = new std::string();
+  *process_ref->ccall_return_val->string_ref = response;
+
+  process_ref->TryCollectTempString(text_obj);
+
   return true;
 }
 

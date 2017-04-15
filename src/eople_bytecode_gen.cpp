@@ -396,6 +396,39 @@ size_t ByteCodeGen::GenExpressionTerm( Node::ArrayLiteral* array_literal, bool )
   return stack_index;
 }
 
+size_t ByteCodeGen::GenExpressionTerm( Node::DictLiteral* dict_literal, bool )
+{
+  size_t stack_index = SYMBOL_TO_STACK(dict_literal);
+  Object* dict_object = StackObject(stack_index);
+  *dict_object = Object::GetDict();
+  for( size_t i = 0; i < dict_literal->keys.size(); ++i)
+  {
+    auto float_literal = dict_literal->values[i]->GetAsFloatLiteral();
+    auto int_literal = dict_literal->values[i]->GetAsIntLiteral();
+    auto string_literal = dict_literal->values[i]->GetAsStringLiteral();
+    auto bool_literal = dict_literal->values[i]->GetAsBoolLiteral();
+
+    if(float_literal)
+    {
+      (*dict_object->dict_ref)[*dict_literal->keys[i]->GetAsStringLiteral()->value] = Object::GetFloat(float_literal->value);
+    }
+    else if(int_literal)
+    {
+      (*dict_object->dict_ref)[*dict_literal->keys[i]->GetAsStringLiteral()->value] = Object::GetInt(int_literal->value);
+    }
+    else if(string_literal)
+    {
+      (*dict_object->dict_ref)[*dict_literal->keys[i]->GetAsStringLiteral()->value] = Object::GetString(string_literal->value);
+    }
+    else if(bool_literal)
+    {
+      (*dict_object->dict_ref)[*dict_literal->keys[i]->GetAsStringLiteral()->value] = Object::GetBool(bool_literal->value);
+    }
+  }
+
+  return stack_index;
+}
+
 // double dispatch support
 type_t ByteCodeGen::GetType( Node::Expression* node )
 {
@@ -569,6 +602,11 @@ size_t ByteCodeGen::PushOpcode( Opcode opcode )
     OPCODE_CASE(Opcode::SpawnProcess)
     OPCODE_CASE(Opcode::PrintI)
     OPCODE_CASE(Opcode::PrintF)
+    OPCODE_CASE(Opcode::PrintIArr)
+    OPCODE_CASE(Opcode::PrintFArr)
+    OPCODE_CASE(Opcode::PrintSArr)
+    OPCODE_CASE(Opcode::PrintSPromise)
+    OPCODE_CASE(Opcode::PrintDict)
     OPCODE_CASE(Opcode::FunctionCall)
     OPCODE_CASE(Opcode::ArrayDeref)
     OPCODE_CASE(Opcode::ProcessMessage)

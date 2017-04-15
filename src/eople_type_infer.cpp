@@ -22,6 +22,7 @@ const char* StringFromValueType( ValueType val_type )
     TOKEN_STRING_CASE(ValueType::BOOL,     "bool");
     TOKEN_STRING_CASE(ValueType::NIL,      "nil");
     TOKEN_STRING_CASE(ValueType::STRING,   "string");
+    TOKEN_STRING_CASE(ValueType::DICT,     "dict");
     TOKEN_STRING_CASE(ValueType::PROCESS,  "process");
     TOKEN_STRING_CASE(ValueType::PROMISE,  "promise");
     TOKEN_STRING_CASE(ValueType::ARRAY,    "array");
@@ -477,6 +478,14 @@ InferenceState TypeInfer::PropagateType( Node::ArrayLiteral* array_literal, type
   array_literal->array_type = array_type.type;
   array_type.type = TypeBuilder::GetArrayType(array_type.type);
   return array_type;
+}
+
+InferenceState TypeInfer::PropagateType( Node::DictLiteral* dict_literal, type_t )
+{
+  InferenceState dict_type;
+  dict_type.type = TypeBuilder::GetDictType();
+  dict_type.clear = true;
+  return dict_type;
 }
 
 InferenceState TypeInfer::PropagateType( Node::BinaryOp* binary_op, type_t type )
