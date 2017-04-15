@@ -173,29 +173,12 @@ bool PrintObject( process_t process_ref )
   return true;
 }
 
-//bool GetLine( process_t process_ref )
-//{
-//  promise_t &promise = process_ref->ccall_return_val->promise;
-//  promise = new Promise(process_ref);
-//  promise->value.string_ref = new std::string();
-//  string_t &new_string = promise->value.string_ref;
-//  ...
-//
-//  return true;
-//}
-
 bool GetLine( process_t process_ref )
 {
   string_t &new_string = process_ref->ccall_return_val->string_ref;
   new_string = new std::string();
 
   std::cin >> *new_string;
-  //u8 next_char = (u8)getchar();
-  //while( next_char != '\n' )
-  //{
-  //  *new_string += next_char;
-  //  next_char = (u8)getchar();
-  //}
 
   return true;
 }
