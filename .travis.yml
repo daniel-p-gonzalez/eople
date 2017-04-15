@@ -1,0 +1,11 @@
+dist: trusty
+sudo: require
+language: cpp
+compiler:
+  - gcc
+  - clang
+install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -y -qq libcurl4-openssl-dev libreadline-dev
+script:
+  - mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && make -j4
