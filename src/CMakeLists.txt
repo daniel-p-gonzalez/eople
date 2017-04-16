@@ -1,8 +1,11 @@
 file(GLOB eople_SOURCES *.cpp)
+set(test_SOURCES ${eople_SOURCES})
+list(REMOVE_ITEM eople_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/eople_tests.cpp)
+list(REMOVE_ITEM test_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/eople_eve.cpp)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m64 -O3 -pthread -std=c++11")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m64 -O3 -pthread -std=c++11 -Wfatal-errors")
   else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -pthread -std=c++11")
   endif()
@@ -19,6 +22,9 @@ endif(CURL_FOUND)
 add_executable(eople ${eople_SOURCES})
 include_directories(${CURL_INCLUDE_DIRS})
 target_link_libraries(eople -lreadline ${CURL_LIBRARIES})
+
+add_executable(tests ${test_SOURCES})
+target_link_libraries(tests -lreadline ${CURL_LIBRARIES})
 
 install(TARGETS eople DESTINATION /usr/local/bin)
 # install(FILES ../icon/eople.png DESTINATION /usr/share/icons)

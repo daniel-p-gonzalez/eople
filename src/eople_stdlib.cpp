@@ -206,8 +206,7 @@ bool ArrayPushArray( process_t process_ref )
   Object* object = process_ref->OperandB();
 
   // push a copy
-  array_t array_value = new std::vector<Object>(*object->array_ref);
-  array_ref->push_back(Object::GetArray(array_value));
+  array_ref->push_back(Object::BuildArray(*object->array_ref));
 
   return true;
 }
@@ -219,7 +218,7 @@ bool ArrayPushString( process_t process_ref )
 
   // push a copy
   string_t string_value = new std::string(*object->string_ref);
-  array_ref->push_back(Object::GetString(string_value));
+  array_ref->push_back(Object::BuildString(string_value));
 
   return true;
 }
@@ -243,8 +242,7 @@ bool ArrayTopArray( process_t process_ref )
   Object &object = process_ref->OperandA()->array_ref->back();
 
   // return a copy
-  array_t array_value = new std::vector<Object>(*object.array_ref);
-  *process_ref->ccall_return_val = Object::GetArray(array_value);
+  *process_ref->ccall_return_val = Object::BuildArray(*object.array_ref);
 
   return true;
 }
@@ -255,7 +253,7 @@ bool ArrayTopString( process_t process_ref )
 
   // return a copy
   string_t string_value = new std::string(*object.string_ref);
-  *process_ref->ccall_return_val = Object::GetString(string_value);
+  *process_ref->ccall_return_val = Object::BuildString(string_value);
 
   return true;
 }
@@ -433,9 +431,9 @@ bool GetURL( process_t process_ref )
 
   process_ref->ccall_return_val->dict_ref = new std::unordered_map<std::string, Object>;
   auto &dict = *process_ref->ccall_return_val->dict_ref;
-  dict["status"] = Object::GetString(new std::string());
+  dict["status"] = Object::BuildString(new std::string());
   *dict["status"].string_ref = status;
-  dict["body"] = Object::GetString(new std::string());
+  dict["body"] = Object::BuildString(new std::string());
   *dict["body"].string_ref = body;
 
   return true;

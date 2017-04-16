@@ -78,7 +78,7 @@ private:
 inline void ExecutionLoop( CallData& call_data )
 {
   process_t process_ref = call_data.process_ref;
-  const ByteCode* &ip = process_ref->ip;
+  const VMCode* &ip = process_ref->ip;
 
   while( ip->instruction(process_ref) )
   {
@@ -89,9 +89,9 @@ inline void ExecutionLoop( CallData& call_data )
 inline void ExecutionLoopIncremental( CallData& call_data )
 {
   process_t process_ref = call_data.process_ref;
-  const ByteCode* start_ip = process_ref->ip;
+  const VMCode* start_ip = process_ref->ip;
   process_ref->ip += process_ref->incremental_ip_offset;
-  const ByteCode* &ip = process_ref->ip;
+  const VMCode* &ip = process_ref->ip;
 
   while( ip->instruction(process_ref) )
   {

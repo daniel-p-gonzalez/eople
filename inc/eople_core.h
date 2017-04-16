@@ -1,6 +1,8 @@
 #pragma once
 #include "core.h"
 
+#include "eople_types.h"
+#include "eople_object.h"
 #include "eople_log.h"
 
 #include <new>
@@ -15,285 +17,7 @@
 namespace Eople
 {
 
-struct Object;
-struct Function;
-struct Process;
-struct Promise;
-
-typedef i64                  int_t;
-typedef f64                  float_t;
-typedef u32                  bool_t;
-typedef Process*             process_t;
-typedef Promise*             promise_t;
-typedef Function*            function_t;
-typedef std::string*         string_t;
-typedef std::vector<Object>* array_t;
-typedef std::unordered_map<std::string, Object>* dict_t;
-
-
-// order matters: eople_parse.cpp:ParseType and eople_static.cpp:BuildPrimitiveTypes
-enum class ValueType
-{
-  NIL = 0,
-  FLOAT,
-  INT,
-  BOOL,
-  STRING,
-  DICT,
-  STRUCT,
-  PROCESS,
-  FUNCTION,
-  PROMISE,
-  ARRAY,
-  TYPE,
-  ANY,
-};
-
-struct Type;
-struct StructType;
-struct ProcessType;
-struct FunctionType;
-struct PromiseType;
-struct ArrayType;
-struct DictType;
-struct KindType;
-struct AnyType;
-typedef Type* type_t;
-typedef std::unique_ptr<Type> TypePtr;
-
-struct TypeBuilder
-{
-  static type_t GetPrimitiveType( ValueType type )
-  {
-    assert((size_t)type <= (size_t)ValueType::DICT);
-
-    return primitive_types[(size_t)type].get();
-  }
-
-  static type_t GetNilType()
-  {
-    return GetPrimitiveType(ValueType::NIL);
-  }
-
-  static type_t GetBoolType()
-  {
-    return GetPrimitiveType(ValueType::BOOL);
-  }
-
-  static type_t GetIntType()
-  {
-    return GetPrimitiveType(ValueType::INT);
-  }
-
-  static type_t GetFloatType()
-  {
-    return GetPrimitiveType(ValueType::FLOAT);
-  }
-
-  static type_t GetDictType()
-  {
-    return GetPrimitiveType(ValueType::DICT);
-  }
-
-  static type_t GetProcessType( std::string class_name )
-  {
-    return GetType<ProcessType>(class_name, process_types);
-  }
-
-  static type_t GetFunctionType( std::string function_name )
-  {
-    return GetType<FunctionType>(function_name, function_types);
-  }
-
-  static type_t GetPromiseType( type_t inner_type )
-  {
-    return GetType<PromiseType>(inner_type, promise_types);
-  }
-
-  static type_t GetArrayType( type_t inner_type = GetPrimitiveType(ValueType::NIL) )
-  {
-    return GetType<ArrayType>(inner_type, array_types);
-  }
-
-  static type_t GetKindType( type_t inner_type = GetPrimitiveType(ValueType::NIL) )
-  {
-    return GetType<KindType>(inner_type, kind_types);
-  }
-
-  static type_t GetAnyType()
-  {
-    return any_type.get();
-  }
-
-  typedef std::vector<TypePtr>           PrimitiveTypeVector;
-  typedef std::map<std::string, TypePtr> ProcessTypeMap;
-  typedef std::map<std::string, TypePtr> FunctionTypeMap;
-  typedef std::map<type_t, TypePtr>      PromiseTypeMap;
-  typedef std::map<type_t, TypePtr>      ArrayTypeMap;
-  typedef std::map<type_t, TypePtr>      KindTypeMap;
-
-private:
-  template <class T, class KT, class MT>
-  static type_t GetType( KT key, MT &the_map )
-  {
-    auto it = the_map.find(key);
-    if( it != the_map.end() )
-    {
-      return it->second.get();
-    }
-    TypePtr new_type( new T(key) );
-    type_t result = new_type.get();
-    the_map[key] = std::move(new_type);
-    return result;
-  }
-
-  static PrimitiveTypeVector primitive_types;
-  static ProcessTypeMap       process_types;
-  static FunctionTypeMap     function_types;
-  static PromiseTypeMap      promise_types;
-  static ArrayTypeMap        array_types;
-  static KindTypeMap         kind_types;
-  static TypePtr             any_type;
-};
-
-struct Type
-{
-  Type( ValueType in_type ) : type(in_type) {}
-
-  virtual ~Type() {}
-
-  virtual bool IsIncompleteType()
-  {
-    return type == ValueType::NIL;
-  }
-
-  virtual type_t GetVaryingType()
-  {
-    if(type == ValueType::DICT)
-    {
-      return TypeBuilder::GetAnyType();
-    }
-    return TypeBuilder::GetNilType();
-  }
-
-  virtual void SetVaryingType( type_t )
-  {
-  }
-
-  ValueType type;
-};
-
-struct StructType : public Type
-{
-  StructType( std::string name ) : struct_name(name), Type(ValueType::STRUCT)
-  {
-  }
-
-  std::string struct_name;
-  std::vector<type_t> member_names;
-};
-
-struct ProcessType : public Type
-{
-  ProcessType( std::string name ) : class_name(name), Type(ValueType::PROCESS) {}
-  std::string class_name;
-};
-
-struct FunctionType : public Type
-{
-  FunctionType( std::string name ) : function_name(name), Type(ValueType::FUNCTION) {}
-  std::string         function_name;
-  std::vector<type_t> arg_types;
-  type_t              return_type;
-};
-
-struct PromiseType : public Type
-{
-  PromiseType( type_t inner_type ) : result_type(inner_type), Type(ValueType::PROMISE) {}
-  virtual bool IsIncompleteType()
-  {
-    return result_type->IsIncompleteType();
-  }
-
-  virtual type_t GetVaryingType()
-  {
-    return result_type;
-  }
-
-  virtual void SetVaryingType( type_t varying_type )
-  {
-    if(!result_type->IsIncompleteType() && result_type != varying_type)
-    {
-      throw "Type Mismatch";
-    }
-    result_type = varying_type;
-  }
-
-  type_t result_type;
-};
-
-struct ArrayType : public Type
-{
-  ArrayType( type_t inner_type ) : element_type(inner_type), Type(ValueType::ARRAY) {}
-  virtual bool IsIncompleteType()
-  {
-    return element_type->IsIncompleteType();
-  }
-
-  virtual type_t GetVaryingType()
-  {
-    return element_type;
-  }
-
-  virtual void SetVaryingType( type_t varying_type )
-  {
-    if(!element_type->IsIncompleteType() && element_type != varying_type)
-    {
-      throw "Type Mismatch";
-    }
-    element_type = varying_type;
-  }
-
-  type_t element_type;
-};
-
-// type whose value is a type.
-// eg. in x = <int>, the type of x is KindType, and KindType::kind_type->type == INT
-// slightly less confusing than TypeType... TypeType::type_type->type == type
-// typetypetypetypetypetypetypetype
-struct KindType : public Type
-{
-  KindType( type_t inner_type ) : kind_type(inner_type), Type(ValueType::TYPE) {}
-  virtual bool IsIncompleteType()
-  {
-    return kind_type->IsIncompleteType();
-  }
-
-  virtual type_t GetVaryingType()
-  {
-    return kind_type;
-  }
-
-  virtual void SetVaryingType( type_t varying_type )
-  {
-    if(!kind_type->IsIncompleteType() && kind_type != varying_type)
-    {
-      throw "Type Mismatch";
-    }
-    kind_type = varying_type;
-  }
-
-  type_t kind_type;
-};
-
-struct AnyType : public Type
-{
-  AnyType() : Type(ValueType::ANY) {}
-};
-
 typedef u16 Operand;
-
-//#define INSTR_CCONV _fastcall
 
 // opcodes must be 1 to 1 with Instruction::opcode
 // mapping defined in eople_vm.cpp::OpcodeToInstruction
@@ -369,215 +93,28 @@ typedef bool (*InstructionImpl) ( process_t process_ref );
 InstructionImpl OpcodeToInstruction( Opcode opcode );
 std::string InstructionToString( InstructionImpl instruction );
 
-struct ByteCode
+// represents a single virtual machine instruction with its operands
+struct VMCode
 {
-  ByteCode( Opcode in_func )
+  VMCode( Opcode in_func )
     : instruction(OpcodeToInstruction(in_func)), a(0), b(0), c(0), d(0)
   {
   }
 
-  ByteCode( InstructionImpl cfunction )
+  VMCode( InstructionImpl cfunction )
     : instruction(cfunction), a(0), b(0), c(0), d(0)
   {
   }
 
-  ByteCode() {}
+  VMCode() {}
 
+  // function pointer to instruction implementation
   InstructionImpl instruction;
-  // operands encoded in instruction
+  // operands are indices into the process stack
   Operand a;
   Operand b;
   Operand c;
   Operand d;
-};
-
-struct Object
-{
-  union
-  {
-    function_t    function;
-    process_t      process_ref;
-    promise_t     promise;
-    string_t      string_ref;
-    array_t       array_ref;
-    dict_t        dict_ref;
-    type_t        type;
-    float_t       float_val;
-    int_t         int_val;
-    i32           jump_offset;
-    bool_t        bool_val;
-  };
-  // TODO: this is a hack related to garbage collection and shouldn't be necessary.
-  u8 object_type;
-
-  Object() : object_type((u8)ValueType::NIL)
-  {
-  }
-
-  void SetInt( int_t val )
-  {
-    object_type = (u8)ValueType::INT;
-    int_val = val;
-  }
-
-  void SetFloat( float_t val )
-  {
-    object_type = (u8)ValueType::FLOAT;
-    float_val = val;
-  }
-
-  void SetBool( bool_t val )
-  {
-    object_type = (u8)ValueType::BOOL;
-    bool_val = val;
-  }
-
-  void SetString( string_t val )
-  {
-    object_type = (u8)ValueType::STRING;
-    string_ref = val;
-  }
-
-  void SetType( type_t val )
-  {
-    type = val;
-  }
-
-  void SetFunction( Function* in_function )
-  {
-    object_type = (u8)ValueType::FUNCTION;
-    function = in_function;
-  }
-
-  void SetProcess( process_t in_process )
-  {
-    object_type = (u8)ValueType::PROCESS;
-    process_ref = in_process;
-  }
-
-  void SetPromise( promise_t in_promise )
-  {
-    object_type = (u8)ValueType::PROMISE;
-    promise = in_promise;
-  }
-
-  void SetArray( array_t val )
-  {
-    object_type = (u8)ValueType::ARRAY;
-    array_ref = val;
-  }
-
-  static Object GetArray( array_t val )
-  {
-    Object array_object;
-    array_object.SetArray(val);
-
-    return array_object;
-  }
-
-  static Object GetArray()
-  {
-    Object array_object;
-    array_object.array_ref = new std::vector<Object>();
-    array_object.object_type = (u8)ValueType::ARRAY;
-
-    return array_object;
-  }
-
-  void SetDict( dict_t val )
-  {
-    object_type = (u8)ValueType::DICT;
-    dict_ref = val;
-  }
-
-  static Object GetDict( dict_t val )
-  {
-    Object dict_object;
-    dict_object.SetDict(val);
-
-    return dict_object;
-  }
-
-  static Object GetDict()
-  {
-    Object dict_object;
-    dict_object.dict_ref = new std::unordered_map<std::string, Object>();
-    dict_object.object_type = (u8)ValueType::DICT;
-
-    return dict_object;
-  }
-
-  static Object GetInt( int_t val )
-  {
-    Object int_object;
-    int_object.SetInt(val);
-
-    return int_object;
-  }
-
-  static Object GetFloat( float_t val )
-  {
-    Object float_object;
-    float_object.SetFloat(val);
-
-    return float_object;
-  }
-
-  static Object GetBool( bool_t val )
-  {
-    Object bool_object;
-    bool_object.SetBool(val);
-
-    return bool_object;
-  }
-
-  static Object GetString( string_t val )
-  {
-    Object string_object;
-    string_object.SetString(val);
-
-    return string_object;
-  }
-
-  static Object GetType( type_t val )
-  {
-    Object type_object;
-    type_object.SetType(val);
-
-    return type_object;
-  }
-
-  static Object GetOffset( i32 offset )
-  {
-    Object offset_object;
-    offset_object.jump_offset = offset;
-
-    return offset_object;
-  }
-
-  static Object GetFunction( Function* function )
-  {
-    Object function_object;
-    function_object.SetFunction( function );
-
-    return function_object;
-  }
-
-  static Object GetProcess( process_t process )
-  {
-    Object process_object;
-    process_object.SetProcess( process );
-
-    return process_object;
-  }
-
-  static Object GetPromise( promise_t promise )
-  {
-    Object promise_object;
-    promise_object.SetPromise( promise );
-
-    return promise_object;
-  }
 };
 
 struct Promise
@@ -608,7 +145,7 @@ struct Function
     }
   }
 
-  std::vector<ByteCode> code;
+  std::vector<VMCode> code;
   // function to switch to when hot swapping
   std::atomic<Function*> updated_function;
   std::string          name;
@@ -753,7 +290,7 @@ struct Process
 
   struct StackFrame
   {
-    StackFrame( size_t base, size_t top, size_t temp, const ByteCode* code )
+    StackFrame( size_t base, size_t top, size_t temp, const VMCode* code )
       : bp(base), sp(top), tp(temp), ip(code)
     {
     }
@@ -762,7 +299,7 @@ struct Process
     size_t bp;
     size_t sp;
     size_t tp;
-    const ByteCode* ip;
+    const VMCode* ip;
   };
 
   void PushStackFrame()
@@ -820,7 +357,7 @@ struct Process
   Object*    temporaries;
 
   // instruction pointer
-  const ByteCode* ip;
+  const VMCode* ip;
   // when running incremental execution (repl), this is the last instruction executed
   size_t incremental_ip_offset;
   // when running incremental execution (repl), this is the last constant/local initialized

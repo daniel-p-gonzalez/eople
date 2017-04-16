@@ -86,12 +86,11 @@ bool GetValue( process_t process_ref )
   if( promise->value.object_type == (u8)ValueType::STRING )
   {
     string_t string_value = new std::string(*promise->value.string_ref);
-    *process_ref->ccall_return_val = Object::GetString(string_value);
+    *process_ref->ccall_return_val = Object::BuildString(string_value);
   }
   else if( promise->value.object_type == (u8)ValueType::ARRAY )
   {
-    array_t array_value = new std::vector<Object>(*promise->value.array_ref);
-    *process_ref->ccall_return_val = Object::GetArray(array_value);
+    *process_ref->ccall_return_val = Object::BuildArray(*promise->value.array_ref);
   }
   else if( promise->value.object_type == (u8)ValueType::PROMISE )
   {
@@ -114,7 +113,7 @@ bool GetValue( process_t process_ref )
 // unlike other instructions, when returns true when it has been executed, and false otherwise
 bool When( process_t process_ref )
 {
-  const ByteCode* &ip = process_ref->ip;
+  const VMCode* &ip = process_ref->ip;
 
   Object* condition        = process_ref->OperandA();
   size_t condition_i_count = (size_t)process_ref->ip->b;
@@ -123,9 +122,9 @@ bool When( process_t process_ref )
   // skip when
   ++ip;
 
-  const ByteCode* condition_start = ip;
-  const ByteCode* condition_end   = ip + condition_i_count;
-  const ByteCode* body_start      = condition_end;
+  const VMCode* condition_start = ip;
+  const VMCode* condition_end   = ip + condition_i_count;
+  const VMCode* body_start      = condition_end;
 
   for( size_t i = 0; i < condition_i_count; ++i, ++ip )
   {
@@ -151,7 +150,7 @@ bool When( process_t process_ref )
 
 bool Whenever( process_t process_ref )
 {
-  const ByteCode* &ip = process_ref->ip;
+  const VMCode* &ip = process_ref->ip;
 
   Object* condition        = process_ref->OperandA();
   size_t condition_i_count = (size_t)process_ref->ip->b;
@@ -160,9 +159,9 @@ bool Whenever( process_t process_ref )
   // skip when
   ++ip;
 
-  const ByteCode* condition_start = ip;
-  const ByteCode* condition_end   = ip + condition_i_count;
-  const ByteCode* body_start      = condition_end;
+  const VMCode* condition_start = ip;
+  const VMCode* condition_end   = ip + condition_i_count;
+  const VMCode* body_start      = condition_end;
 
   for( size_t i = 0; i < condition_i_count; ++i, ++ip )
   {
@@ -194,7 +193,7 @@ bool Whenever( process_t process_ref )
 
 bool While( process_t process_ref )
 {
-  const ByteCode* &ip = process_ref->ip;
+  const VMCode* &ip = process_ref->ip;
 
   Object* condition        = process_ref->OperandA();
   size_t condition_i_count = (size_t)process_ref->ip->b;
@@ -203,9 +202,9 @@ bool While( process_t process_ref )
   // skip while
   ++ip;
 
-  const ByteCode* condition_start = ip;
-  const ByteCode* condition_end   = ip + condition_i_count;
-  const ByteCode* body_start      = condition_end;
+  const VMCode* condition_start = ip;
+  const VMCode* condition_end   = ip + condition_i_count;
+  const VMCode* body_start      = condition_end;
 
   for( size_t i = 0; i < condition_i_count; ++i, ++ip )
   {
@@ -235,7 +234,7 @@ bool While( process_t process_ref )
 
 bool ForI( process_t process_ref )
 {
-  const ByteCode* &ip = process_ref->ip;
+  const VMCode* &ip = process_ref->ip;
 
   int_t        start     = process_ref->OperandA()->int_val;
   size_t       counter_offset = process_ref->ip->a;
@@ -245,8 +244,8 @@ bool ForI( process_t process_ref )
 
   // skip for
   ++ip;
-  const ByteCode* const start_ip = process_ref->ip;
-  const ByteCode* const end_ip   = start_ip + i_count;
+  const VMCode* const start_ip = process_ref->ip;
+  const VMCode* const end_ip   = start_ip + i_count;
 
   if( step >= 0 )
   {
@@ -279,7 +278,7 @@ bool ForI( process_t process_ref )
 
 bool ForF( process_t process_ref )
 {
-  const ByteCode* &ip = process_ref->ip;
+  const VMCode* &ip = process_ref->ip;
 
   float_t       start     = process_ref->OperandA()->float_val;
   size_t        counter_offset = process_ref->ip->a;
@@ -289,8 +288,8 @@ bool ForF( process_t process_ref )
 
   // skip for
   ++ip;
-  const ByteCode* const start_ip = process_ref->ip;
-  const ByteCode* const end_ip   = start_ip + i_count;
+  const VMCode* const start_ip = process_ref->ip;
+  const VMCode* const end_ip   = start_ip + i_count;
 
   if( step >= 0 )
   {
@@ -323,16 +322,16 @@ bool ForF( process_t process_ref )
 
 bool ForA( process_t process_ref )
 {
-  const ByteCode* &ip = process_ref->ip;
+  const VMCode* &ip = process_ref->ip;
 
-  array_t array   = process_ref->OperandB()->array_ref;
+  array_ptr_t array   = process_ref->OperandB()->array_ref;
   size_t  element_offset = process_ref->ip->a;
   const size_t  i_count  = (size_t)process_ref->ip->d;
 
   // skip for
   ++ip;
-  const ByteCode* const start_ip = process_ref->ip;
-  const ByteCode* const end_ip   = start_ip + i_count;
+  const VMCode* const start_ip = process_ref->ip;
+  const VMCode* const end_ip   = start_ip + i_count;
 
   for( auto thing : *array )
   {

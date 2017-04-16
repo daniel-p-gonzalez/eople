@@ -538,7 +538,7 @@ void VirtualMachine::ExecuteConstructor( CallData call_data, process_t caller )
 
   // set 'this' process reference
   assert( process_ref->stack < process_ref->stack_end );
-  call_data.process_ref->stack[0] = Object::GetProcess(call_data.process_ref);
+  call_data.process_ref->stack[0] = Object::BuildProcess(call_data.process_ref);
 
   ExecutionLoop(call_data);
 }
@@ -607,7 +607,7 @@ void VirtualMachine::ExecuteProcessMessage( CallData call_data )
       memcpy( process_ref->stack_base + when.eval->parameters_start, when.context.base, when.context.size() * sizeof(Object) );
     }
 
-    const ByteCode* &ip = process_ref->ip;
+    const VMCode* &ip = process_ref->ip;
     if( ip->instruction(process_ref) )
     {
       // when branch taken. swap with last element and pop to remove.
@@ -646,7 +646,7 @@ void VirtualMachine::ExecuteProcessMessage( CallData call_data )
       memcpy( process_ref->stack_base + whenever.eval->parameters_start, whenever.context.base, whenever.context.size() * sizeof(Object) );
     }
 
-    const ByteCode* &ip = process_ref->ip;
+    const VMCode* &ip = process_ref->ip;
     if( ip->instruction(process_ref) )
     {
       if( !process_ref->ccall_return_val->bool_val )
@@ -682,13 +682,13 @@ void VirtualMachine::ExecuteFunction( CallData call_data )
   // using offset instead of pointer since stack may grow
   size_t stack_base_offset = process_ref->stack_base - process_ref->stack;
   // grab ip as well for current instruction
-  const ByteCode* old_ip = process_ref->ip;
+  const VMCode* old_ip = process_ref->ip;
   // setup new stack frame, potentially growing the stack
   process_ref->SetupStackFrame( function );
 
   // stash new stack base to restore after arg copy
   Object* new_stack_base = process_ref->stack_base;
-  const ByteCode* new_ip = process_ref->ip;
+  const VMCode* new_ip = process_ref->ip;
 
   // temporarily set stack base and ip to caller version to simplify arg copy
   process_ref->stack_base = process_ref->stack + stack_base_offset;
@@ -877,7 +877,7 @@ void VirtualMachine::ExecuteFunctionIncremental( CallData call_data )
       memcpy( process_ref->stack_base + when.eval->parameters_start, when.context.base, when.context.size() * sizeof(Object) );
     }
 
-    const ByteCode* &ip = process_ref->ip;
+    const VMCode* &ip = process_ref->ip;
     if( ip->instruction(process_ref) )
     {
       // when branch taken. swap with last element and pop to remove.
@@ -916,7 +916,7 @@ void VirtualMachine::ExecuteFunctionIncremental( CallData call_data )
       memcpy( process_ref->stack_base + whenever.eval->parameters_start, whenever.context.base, whenever.context.size() * sizeof(Object) );
     }
 
-    const ByteCode* &ip = process_ref->ip;
+    const VMCode* &ip = process_ref->ip;
     if( ip->instruction(process_ref) )
     {
       if( !process_ref->ccall_return_val->bool_val )
