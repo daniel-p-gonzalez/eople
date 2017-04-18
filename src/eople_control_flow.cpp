@@ -15,18 +15,9 @@ bool WhenRegister( process_t process_ref )
 {
   Function* when = process_ref->OperandA()->function;
 
-  auto when_block = WhenBlock(when);
-  size_t copy_count = when->locals_count() + when->parameter_count() + when->constant_count();
-  if( !when->is_repl && !when->is_constructor && copy_count )
-  {
-    Object* context = new Object[copy_count];
-    when_block.context = SafeRange<Object>( context, context + copy_count );
-    when_block.base_offset = process_ref->stack_base - process_ref->stack;
-    assert( (process_ref->stack_base + when->parameters_start + when_block.context.size()) <= process_ref->stack_end );
-    memcpy( when_block.context.base, process_ref->stack_base + when->parameters_start, when_block.context.size() * sizeof(Object) );
-  }
+  auto when_block = WhenBlock(when, process_ref->stack.CaptureClosure(when));
 
-  process_ref->when_blocks.push_back(when_block);
+  process_ref->when_blocks.push_back(std::move(when_block));
   return true;
 }
 
@@ -34,18 +25,10 @@ bool WheneverRegister( process_t process_ref )
 {
   Function* whenever = process_ref->OperandA()->function;
 
-  auto when_block = WhenBlock(whenever);
-  size_t copy_count = whenever->locals_count() + whenever->parameter_count() + whenever->constant_count();
-  if( !whenever->is_repl && !whenever->is_constructor && copy_count )
-  {
-    Object* context = new Object[copy_count];
-    when_block.context = SafeRange<Object>( context, context + copy_count );
-    when_block.base_offset = process_ref->stack_base - process_ref->stack;
-    assert( (process_ref->stack_base + whenever->parameters_start + when_block.context.size()) <= process_ref->stack_end );
-    memcpy( when_block.context.base, process_ref->stack_base + whenever->parameters_start, when_block.context.size() * sizeof(Object) );
-  }
+  auto when_block = WhenBlock(whenever,
+                              process_ref->stack.CaptureClosure(whenever));
 
-  process_ref->whenever_blocks.push_back(when_block);
+  process_ref->whenever_blocks.push_back(std::move(when_block));
   return true;
 }
 
@@ -53,7 +36,6 @@ bool Ready( process_t process_ref )
 {
   promise_t promise = process_ref->OperandA()->promise;
 
-  assert( process_ref->ccall_return_val < process_ref->stack_end );
   bool is_ready = promise->is_ready;
 
   promise_t child_promise = promise;
@@ -72,7 +54,7 @@ bool Ready( process_t process_ref )
     }
   }
 
-  process_ref->ccall_return_val->bool_val = is_ready;
+  process_ref->CCallReturnVal()->bool_val = is_ready;
 
   return true;
 }
@@ -81,16 +63,15 @@ bool GetValue( process_t process_ref )
 {
   promise_t promise = process_ref->OperandA()->promise;
 
-  assert( process_ref->ccall_return_val < process_ref->stack_end );
   // TODO: this is clearly a hack, and is the only reason Object::object_type exists.
   if( promise->value.object_type == (u8)ValueType::STRING )
   {
     string_t string_value = new std::string(*promise->value.string_ref);
-    *process_ref->ccall_return_val = Object::BuildString(string_value);
+    *process_ref->CCallReturnVal() = Object::BuildString(string_value);
   }
   else if( promise->value.object_type == (u8)ValueType::ARRAY )
   {
-    *process_ref->ccall_return_val = Object::BuildArray(*promise->value.array_ref);
+    *process_ref->CCallReturnVal() = Object::BuildArray(*promise->value.array_ref);
   }
   else if( promise->value.object_type == (u8)ValueType::PROMISE )
   {
@@ -100,11 +81,11 @@ bool GetValue( process_t process_ref )
     {
       child_promise = child_promise->value.promise;
     }
-    *process_ref->ccall_return_val = child_promise->value;
+    *process_ref->CCallReturnVal() = child_promise->value;
   }
   else
   {
-    *process_ref->ccall_return_val = promise->value;
+    *process_ref->CCallReturnVal() = promise->value;
   }
 
   return true;
@@ -177,13 +158,13 @@ bool Whenever( process_t process_ref )
       if( !body_start[i].instruction(process_ref) )
       {
         // 'return'ing from a whenever stops the loop
-        process_ref->ccall_return_val->bool_val = false;
+        process_ref->CCallReturnVal()->bool_val = false;
         break;
       }
     }
 
     ip = body_start + body_i_count;
-    process_ref->ccall_return_val->bool_val = true;
+    process_ref->CCallReturnVal()->bool_val = true;
     return true;
   }
 
@@ -251,8 +232,7 @@ bool ForI( process_t process_ref )
   {
     for( int_t i = start; i < stop_value; i += step )
     {
-      assert( (process_ref->stack_base+counter_offset) < process_ref->stack_end );
-      process_ref->stack_base[counter_offset].int_val = i;
+      process_ref->stack.GetObjectAtOffset(counter_offset)->int_val = i;
       for( ip = start_ip; ip != end_ip; ++ip )
       {
         ip->instruction(process_ref);
@@ -263,8 +243,7 @@ bool ForI( process_t process_ref )
   {
     for( int_t i = start; i > stop_value; i += step )
     {
-      assert( (process_ref->stack_base+counter_offset) < process_ref->stack_end );
-      process_ref->stack_base[counter_offset].int_val = i;
+      process_ref->stack.GetObjectAtOffset(counter_offset)->int_val = i;
       for( ip = start_ip; ip != end_ip; ++ip )
       {
         ip->instruction(process_ref);
@@ -295,8 +274,7 @@ bool ForF( process_t process_ref )
   {
     for( float_t i = start; i < stop_value; i += step )
     {
-      assert( (process_ref->stack_base+counter_offset) < process_ref->stack_end );
-      process_ref->stack_base[counter_offset].float_val = i;
+      process_ref->stack.GetObjectAtOffset(counter_offset)->float_val = i;
       for( ip = start_ip; ip != end_ip; ++ip )
       {
         ip->instruction(process_ref);
@@ -307,8 +285,7 @@ bool ForF( process_t process_ref )
   {
     for( float_t i = start; i > stop_value; i += step )
     {
-      assert( (process_ref->stack_base+counter_offset) < process_ref->stack_end );
-      process_ref->stack_base[counter_offset].float_val = i;
+      process_ref->stack.GetObjectAtOffset(counter_offset)->float_val = i;
       for( ip = start_ip; ip != end_ip; ++ip )
       {
         ip->instruction(process_ref);
@@ -324,8 +301,11 @@ bool ForA( process_t process_ref )
 {
   const VMCode* &ip = process_ref->ip;
 
+  // array in "for element in array:""
   array_ptr_t array   = process_ref->OperandB()->array_ref;
+  // element in "for element in array:""
   size_t  element_offset = process_ref->ip->a;
+  // instruction count within block
   const size_t  i_count  = (size_t)process_ref->ip->d;
 
   // skip for
@@ -335,8 +315,7 @@ bool ForA( process_t process_ref )
 
   for( auto thing : *array )
   {
-    assert( (process_ref->stack_base+element_offset) < process_ref->stack_end );
-    process_ref->stack_base[element_offset] = thing;
+    *process_ref->stack.GetObjectAtOffset(element_offset) = thing;
     for( ip = start_ip; ip != end_ip; ++ip )
     {
       ip->instruction(process_ref);
@@ -452,86 +431,66 @@ bool Return( process_t /*process_ref*/ )
 
 bool ReturnValue( process_t process_ref )
 {
-  assert( process_ref->stack_base < process_ref->stack_end );
-  *process_ref->stack_base = *process_ref->OperandA();
+  *process_ref->stack.GetObjectAtOffset(0) = *process_ref->OperandA();
   return false;
 }
 
 void CopyMessageArgs( const Function* function, process_t process_ref, Object* dest )
 {
   size_t parameter_count = function->parameter_count();
+  if( !parameter_count )
+  {
+    return;
+  }
+
   if( parameter_count )
   {
-    if( parameter_count <= 2 )
+    *(dest++) = *process_ref->OperandC();
+    --parameter_count;
+  }
+  if( parameter_count )
+  {
+    *(dest++) = *process_ref->OperandD();
+    --parameter_count;
+  }
+
+  while( parameter_count )
+  {
+    ++process_ref->ip;
+    if( parameter_count )
     {
-      if( parameter_count == 2 )
-      {
-        dest[0] = *process_ref->OperandC();
-        dest[1] = *process_ref->OperandD();
-      }
-      else
-      {
-        dest[0] = *process_ref->OperandC();
-      }
+      *(dest++) = *process_ref->OperandA();
+      --parameter_count;
     }
-    else // TODO: make sure this all makes sense
+    if( parameter_count )
     {
-      // this seems very wrong. should be incrementing ip,
-      //  and the (i+2) guard logic is wrong (test with parameter_count == 5)
-
-      // copy args to stack
-      for( size_t i = 0; (i+2) < parameter_count; )
-      {
-        // first operand is function object in first instruction, so skip that
-        if( i == 0 )
-        {
-          dest[i]   = *process_ref->OperandC();
-          dest[i+1] = *process_ref->OperandD();
-          i+=2;
-        }
-        else
-        {
-          dest[i]   = *process_ref->OperandA();
-          dest[i+1] = *process_ref->OperandB();
-          dest[i+2] = *process_ref->OperandC();
-          dest[i+3] = *process_ref->OperandD();
-          i+=4;
-        }
-      }
-
-      const size_t remainder = parameter_count % 4;
-      const size_t last      = parameter_count - remainder;
-
-      if( remainder == 3 )
-      {
-        dest[last]   = *process_ref->OperandA();
-        dest[last+1] = *process_ref->OperandB();
-        dest[last+2] = *process_ref->OperandC();
-      }
-      else if( remainder == 2 )
-      {
-        dest[last]   = *process_ref->OperandA();
-        dest[last+1] = *process_ref->OperandB();
-      }
-      else if( remainder == 1 )
-      {
-        dest[last] = *process_ref->OperandA();
-      }
+      *(dest++) = *process_ref->OperandB();
+      --parameter_count;
+    }
+    if( parameter_count )
+    {
+      *(dest++) = *process_ref->OperandC();
+      --parameter_count;
+    }
+    if( parameter_count )
+    {
+      *(dest++) = *process_ref->OperandD();
+      --parameter_count;
     }
   }
 }
 
 bool ProcessMessage( process_t process_ref )
 {
-  process_t  other_process = process_ref->OperandA()->process_ref;
-  Function* function     = process_ref->OperandB()->function;
+  process_t other_process = process_ref->OperandA()->process_ref;
+  Function* function      = process_ref->OperandB()->function;
 
   Object* args = new Object[function->parameter_count()];
   CopyMessageArgs( function, process_ref, args );
 
   promise_t promise = (function->return_type == TypeBuilder::GetNilType()) ? nullptr : new Promise(process_ref);
   process_ref->vm->SendMessage( CallData(function, other_process, args, promise) );
-  process_ref->ccall_return_val->promise = promise;
+  process_ref->CCallReturnVal()->promise = promise;
   return true;
 }
 

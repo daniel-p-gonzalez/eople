@@ -845,7 +845,7 @@ Function* VMCodeGen::GenWhen( T when_node, Opcode opcode )
   m_function->is_when_eval        = true;
 
   // "when" statement runs within outer context, like methods
-  m_function->is_method           = true;
+  m_function->reuse_context           = true;
 
   m_first_temp = m_current_temp = m_function->temp_start;
 
@@ -1508,7 +1508,7 @@ void VMCodeGen::GenModule( ExecutableModule* module )
             continue;
           }
           InitFunction( member.get() );
-          m_function->is_method = true;
+          m_function->reuse_context = true;
         }
       }
     }

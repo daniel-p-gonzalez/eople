@@ -175,7 +175,7 @@ bool PrintObject( process_t process_ref )
 
 bool GetLine( process_t process_ref )
 {
-  string_t &new_string = process_ref->ccall_return_val->string_ref;
+  string_t &new_string = process_ref->CCallReturnVal()->string_ref;
   new_string = new std::string();
 
   std::cin >> *new_string;
@@ -185,7 +185,7 @@ bool GetLine( process_t process_ref )
 
 bool ArrayConstructor( process_t process_ref )
 {
-  process_ref->ccall_return_val->array_ref = new std::vector<Object>();
+  process_ref->CCallReturnVal()->array_ref = new std::vector<Object>();
 
   return true;
 }
@@ -225,14 +225,14 @@ bool ArrayPushString( process_t process_ref )
 
 bool ArraySize( process_t process_ref )
 {
-  process_ref->ccall_return_val->int_val = process_ref->OperandA()->array_ref->size();
+  process_ref->CCallReturnVal()->int_val = process_ref->OperandA()->array_ref->size();
 
   return true;
 }
 
 bool ArrayTop( process_t process_ref )
 {
-  *process_ref->ccall_return_val = process_ref->OperandA()->array_ref->back();
+  *process_ref->CCallReturnVal() = process_ref->OperandA()->array_ref->back();
 
   return true;
 }
@@ -242,7 +242,7 @@ bool ArrayTopArray( process_t process_ref )
   Object &object = process_ref->OperandA()->array_ref->back();
 
   // return a copy
-  *process_ref->ccall_return_val = Object::BuildArray(*object.array_ref);
+  *process_ref->CCallReturnVal() = Object::BuildArray(*object.array_ref);
 
   return true;
 }
@@ -253,7 +253,7 @@ bool ArrayTopString( process_t process_ref )
 
   // return a copy
   string_t string_value = new std::string(*object.string_ref);
-  *process_ref->ccall_return_val = Object::BuildString(string_value);
+  *process_ref->CCallReturnVal() = Object::BuildString(string_value);
 
   return true;
 }
@@ -304,14 +304,14 @@ bool Timer( process_t process_ref )
   promise_t promise = new Promise(process_ref);
   promise->is_timer = true;
   process_ref->vm->SendMessage( CallData(nullptr, process_ref, nullptr, promise, future_time) );
-  process_ref->ccall_return_val->promise = promise;
+  process_ref->CCallReturnVal()->promise = promise;
   return true;
 }
 
 bool GetTime( process_t process_ref )
 {
   auto now = HighResClock::now().time_since_epoch();
-  process_ref->ccall_return_val->float_val = (float_t)(std::chrono::duration_cast<std::chrono::microseconds>(now).count())/1000000.0;
+  process_ref->CCallReturnVal()->float_val = (float_t)(std::chrono::duration_cast<std::chrono::microseconds>(now).count())/1000000.0;
 
   return true;
 }
@@ -328,13 +328,13 @@ bool SleepMilliseconds( process_t process_ref )
 
 bool IntToFloat( process_t process_ref )
 {
-  process_ref->ccall_return_val->float_val = (float_t)process_ref->OperandA()->int_val;
+  process_ref->CCallReturnVal()->float_val = (float_t)process_ref->OperandA()->int_val;
   return true;
 }
 
 bool FloatToInt( process_t process_ref )
 {
-  process_ref->ccall_return_val->int_val = (int_t)process_ref->OperandA()->float_val;
+  process_ref->CCallReturnVal()->int_val = (int_t)process_ref->OperandA()->float_val;
   return true;
 }
 
@@ -342,8 +342,8 @@ bool IntToString( process_t process_ref )
 {
   std::ostringstream string_stream;
   string_stream << process_ref->OperandA()->int_val;
-  process_ref->ccall_return_val->string_ref = new std::string();
-  *process_ref->ccall_return_val->string_ref = string_stream.str();
+  process_ref->CCallReturnVal()->string_ref = new std::string();
+  *process_ref->CCallReturnVal()->string_ref = string_stream.str();
 
   return true;
 }
@@ -352,8 +352,8 @@ bool FloatToString( process_t process_ref )
 {
   std::ostringstream string_stream;
   string_stream << process_ref->OperandA()->float_val;
-  process_ref->ccall_return_val->string_ref = new std::string();
-  *process_ref->ccall_return_val->string_ref = string_stream.str();
+  process_ref->CCallReturnVal()->string_ref = new std::string();
+  *process_ref->CCallReturnVal()->string_ref = string_stream.str();
   return true;
 }
 
@@ -375,8 +375,8 @@ bool PromiseToString( process_t process_ref )
     string_stream << promise->value.float_val;
   }
 
-  process_ref->ccall_return_val->string_ref = new std::string();
-  *process_ref->ccall_return_val->string_ref = string_stream.str();
+  process_ref->CCallReturnVal()->string_ref = new std::string();
+  *process_ref->CCallReturnVal()->string_ref = string_stream.str();
   return true;
 }
 
@@ -429,8 +429,8 @@ bool GetURL( process_t process_ref )
       curl_easy_cleanup(curl);
   }
 
-  process_ref->ccall_return_val->dict_ref = new std::unordered_map<std::string, Object>;
-  auto &dict = *process_ref->ccall_return_val->dict_ref;
+  process_ref->CCallReturnVal()->dict_ref = new std::unordered_map<std::string, Object>;
+  auto &dict = *process_ref->CCallReturnVal()->dict_ref;
   dict["status"] = Object::BuildString(new std::string());
   *dict["status"].string_ref = status;
   dict["body"] = Object::BuildString(new std::string());
@@ -469,8 +469,8 @@ bool GetURL_USERPWD( process_t process_ref )
       curl_easy_cleanup(curl);
   }
 
-  process_ref->ccall_return_val->string_ref = new std::string();
-  *process_ref->ccall_return_val->string_ref = response;
+  process_ref->CCallReturnVal()->string_ref = new std::string();
+  *process_ref->CCallReturnVal()->string_ref = response;
 
   process_ref->TryCollectTempString(text_obj);
 

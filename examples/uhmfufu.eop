@@ -44,7 +44,7 @@ class Eddie():
         current_line = current_line + 1
 
         if current_line == 1:
-            print("Eddie: What's you're problem, baby?")
+            print("Eddie: What's your problem, baby?")
             later = after(1000)
             when later: uhmfufu->ReplyTo(this) end
         elif current_line == 2:

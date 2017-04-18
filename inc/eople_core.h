@@ -130,7 +130,7 @@ struct Promise
 struct Function
 {
   Function()
-    : is_method(false), constants(nullptr), updated_function(nullptr),
+    : reuse_context(false), constants(nullptr), updated_function(nullptr),
       temp_end(0), return_type(TypeBuilder::GetNilType()), is_constructor(false), is_when_eval(false)
   {
   }
@@ -166,7 +166,7 @@ struct Function
   u32 storage_requirement;
 
   type_t return_type;
-  bool   is_method;
+  bool   reuse_context;
   bool   is_constructor;
   bool   is_repl;
   // this function is the evaluation function of a when block
@@ -177,33 +177,71 @@ private:
 
 class VirtualMachine;
 
+struct ClosureState
+{
+  ClosureState() : state(nullptr), base_offset(0), object_count(0) {}
+
+  ClosureState(size_t offset, size_t count)
+  : object_count(count), base_offset(offset), state(new Object[count])
+  {
+  }
+
+  ClosureState(ClosureState&& other)
+  {
+    state = other.state;
+    object_count = other.object_count;
+    base_offset = other.base_offset;
+    other.state = nullptr;
+    other.object_count = 0;
+  }
+
+  ClosureState& operator=(ClosureState&& other)
+  {
+    if( this != &other )
+    {
+      if( state )
+      {
+        delete[] state;
+      }
+      state = other.state;
+      object_count = other.object_count;
+      base_offset = other.base_offset;
+      other.state = nullptr;
+      other.object_count = 0;
+
+      return *this;
+    }
+  }
+
+  ~ClosureState() { if(state) delete[] state; }
+
+  Object* state;
+  size_t base_offset;
+  size_t object_count;
+};
+
 struct WhenBlock
 {
-  WhenBlock( Function* in_eval )
-    : eval(in_eval), base_offset(0)
+  WhenBlock( Function* in_eval, ClosureState &&state )
+    : eval(in_eval), closure_state(std::move(state))
   {
   }
 
   // when block to evaluate
   Function* eval;
-  // state local to when block closure
-  // TODO: make proper use of SafeRange
-  SafeRange<Object> context;
-  // where the closure lives on the stack
-  size_t  base_offset;
+  ClosureState closure_state;
 };
 
-struct Process
+// Stack layout for a single process looks like:
+//  [[this][class_args][constants][locals][temporaries]]
+struct ProcessStack
 {
-  Process( u32 in_process, VirtualMachine* in_vm, Process* old_list_head )
-    : process_id(in_process), vm(in_vm), next(old_list_head), incremental_ip_offset(0), incremental_locals_offset(0),
-      incremental_constants_offset(0), stack(nullptr), stack_end(nullptr), stack_base(nullptr), stack_top(nullptr),
-      temporaries(nullptr), ip(nullptr)
+  ProcessStack() : stack(nullptr), stack_end(nullptr), stack_base(nullptr),
+                   stack_top(nullptr), temporaries(nullptr)
   {
-    lock.store(0);
   }
 
-  ~Process()
+  ~ProcessStack()
   {
     if( stack )
     {
@@ -212,51 +250,171 @@ struct Process
     }
   }
 
-  Object* OperandA()
+  struct StackFrame
   {
-    assert( (stack_base+ip->a) < stack_end );
-    return &stack_base[ip->a];
-  }
-
-  Object* OperandB()
-  {
-    assert( (stack_base+ip->b) < stack_end );
-    return &stack_base[ip->b];
-  }
-
-  Object* OperandC()
-  {
-    assert( (stack_base+ip->c) < stack_end );
-    return &stack_base[ip->c];
-  }
-
-  Object* OperandD()
-  {
-    assert( (stack_base+ip->d) < stack_end );
-    return &stack_base[ip->d];
-  }
-
-  bool IsTemporary( Object* object )
-  {
-    return object >= temporaries;
-  }
-
-  // Free memory from temp string (if it's actually a temp)
-  void TryCollectTempString( Object* temp )
-  {
-    if( temp >= temporaries )
+    StackFrame( size_t base, size_t top, size_t temp )
+      : bp(base), sp(top), tp(temp)
     {
-      delete temp->string_ref;
+    }
+
+    // must be offsets since the stack may be reallocated
+    size_t bp;
+    size_t sp;
+    size_t tp;
+  };
+
+  void PushStackFrame()
+  {
+    stack_frame.push_back(StackFrame(stack_base-stack, stack_top-stack, temporaries-stack));
+  }
+
+  void PopStackFrame()
+  {
+    if( !stack_frame.empty() )
+    {
+      StackFrame frame = stack_frame.back(); stack_frame.pop_back();
+      stack_base  = stack + frame.bp;
+      stack_top   = stack + frame.sp;
+      temporaries = stack + frame.tp;
     }
   }
 
-  // If destination is a temporary, this makes sure it's initialized so that values left over
-  //     from other (non-string) temporaries are not misinterpreted as pointers.
-  void TryInitTempString( Object* temp )
+  void SetupStackFrame( const Function* function )
   {
-    if( temp >= temporaries )
+    // preserve caller's stack frame
+    PushStackFrame();
+
+    //
+    // Allocate stack space for new active function.
+    //
+    // increment stack base if this is not a method.
+    // this allow access to class member variables
+    //  (which start at base of process stack)
+    stack_base = function->reuse_context ? stack_base : stack_top;
+    // TODO: refactor use of temp_end and storage_requirement.
+    // "when" blocks reuse exact stack frame of outer function
+    //   e.g. its closure, which is restored + space for additional temporaries
+    stack_top = function->is_when_eval ? stack_base + function->temp_end : stack_top + function->storage_requirement;
+    temporaries = function->temp_start + (function->reuse_context ? stack : stack_base);
+
+    // if there's not enough room, grow the stack
+    //   + 1 so there is space for ccalls to store return values.
+    // TODO: refactor to remove need for special handling of ccalls
+    if( (stack_top+1) > stack_end )
     {
-      temp->string_ref = new std::string();
+      ReallocStack( stack_top - stack );
+    }
+  }
+
+  void InitializeLocals( const Function* function )
+  {
+    // TODO: only necessary because of how string/array memory management is currently implemented
+    assert( (stack_base + function->locals_start + function->locals_count()) <= stack_end );
+    memset( stack_base + function->locals_start, 0, function->locals_count() * sizeof(Object) );
+  }
+
+  void PushConstants( const Function* function )
+  {
+    assert( (stack_base + function->constants_start + function->constant_count()) <= stack_end );
+    memcpy( stack_base + function->constants_start, function->constants, function->constant_count() * sizeof(Object) );
+  }
+
+  void PushArgs( const Function* function, const Object* args )
+  {
+    assert( (stack + function->parameters_start + function->parameter_count()) <= stack_end );
+    memcpy( stack + function->parameters_start, args, sizeof(Object) * function->parameter_count() );
+  }
+
+  // TODO: this makes a lot of assumptions about safety
+  void PushArgs( const Function* function, const VMCode* caller_ip, Object* src )
+  {
+    Object* dest;
+    if( function->is_constructor )
+    {
+      dest = stack + 1;
+    }
+    else
+    {
+      dest = stack_base;
+    }
+
+    size_t parameter_count = function->parameter_count();
+    if( !parameter_count )
+    {
+      return;
+    }
+
+    if( !function->is_constructor )
+    {
+      *(dest++) = src[caller_ip->b];
+      --parameter_count;
+    }
+    if( parameter_count )
+    {
+      *(dest++) = src[caller_ip->c];
+      --parameter_count;
+    }
+    if( parameter_count )
+    {
+      *(dest++) = src[caller_ip->d];
+      --parameter_count;
+    }
+
+    while( parameter_count )
+    {
+      ++caller_ip;
+      if( parameter_count )
+      {
+        *(dest++) = src[caller_ip->a];
+        --parameter_count;
+      }
+      if( parameter_count )
+      {
+        *(dest++) = src[caller_ip->b];
+        --parameter_count;
+      }
+      if( parameter_count )
+      {
+        *(dest++) = src[caller_ip->c];
+        --parameter_count;
+      }
+      if( parameter_count )
+      {
+        *(dest++) = src[caller_ip->d];
+        --parameter_count;
+      }
+    }
+  }
+
+  ClosureState CaptureClosure( const Function* function )
+  {
+    size_t copy_count = function->locals_count() + function->parameter_count() + function->constant_count();
+    if( copy_count )
+    {
+      size_t base_offset = stack_base - stack;
+      ClosureState closure_state = ClosureState(base_offset, copy_count);
+      assert( (stack_base + function->parameters_start + copy_count) <= stack_end );
+      memcpy( closure_state.state, stack_base + function->parameters_start, copy_count * sizeof(Object) );
+      return closure_state;
+    }
+    else
+    {
+      return ClosureState();
+    }
+  }
+
+  void ApplyClosureState( const Function* function, const ClosureState &closure_state )
+  {
+    auto old_base = stack_base;
+    stack_base = stack + closure_state.base_offset;
+    stack_top += stack_base - old_base;
+    temporaries += stack_base - old_base;
+
+    if( closure_state.state )
+    {
+      // copy closure state to stack
+      assert( (stack_base + function->parameters_start + closure_state.object_count) <= stack_end );
+      memcpy( stack_base + function->parameters_start, closure_state.state, closure_state.object_count * sizeof(Object) );
     }
   }
 
@@ -288,61 +446,34 @@ struct Process
     memset( stack + old_size, 0, sizeof(Object) * (size - old_size) );
   }
 
-  struct StackFrame
+  Object* GetObjectAtOffset( u16 offset )
   {
-    StackFrame( size_t base, size_t top, size_t temp, const VMCode* code )
-      : bp(base), sp(top), tp(temp), ip(code)
-    {
-    }
-
-    // must be offsets since the stack may be reallocated
-    size_t bp;
-    size_t sp;
-    size_t tp;
-    const VMCode* ip;
-  };
-
-  void PushStackFrame()
-  {
-    stack_frame.push_back(StackFrame(stack_base-stack, stack_top-stack, temporaries-stack, ip));
+    assert( (stack_base+offset) < stack_end );
+    return &stack_base[offset];
   }
 
-  void PopStackFrame()
+  void PushObjectAtOffset( const Object &object, u16 offset )
   {
-    StackFrame frame = stack_frame.back(); stack_frame.pop_back();
-    stack_base  = stack + frame.bp;
-    stack_top   = stack + frame.sp;
-    temporaries = stack + frame.tp;
-    ip          = frame.ip;
+    assert( (stack_base+offset) < stack_end );
+    stack_base[offset] = object;
   }
 
-  void SetupStackFrame( const Function* function )
+  void ShiftSegment(size_t old_offset, size_t new_offset, size_t segment_size)
   {
-    // preserve caller's stack frame
-    PushStackFrame();
+    Object* old_segment = stack_base + old_offset;
+    Object* new_segment = stack_base + new_offset;
 
-    // allocate stack space for new active function
-    // increment stack base if this is not a method
-    stack_base = function->is_method ? stack_base : stack_top;
-    stack_top = function->is_when_eval ? stack_base + function->temp_end : stack_top + function->storage_requirement;
-    temporaries = function->temp_start + (function->is_method ? stack : stack_base);
+    assert( (new_segment + segment_size) <= stack_end );
+    memmove( new_segment, old_segment, sizeof(Object) * segment_size );
+  }
 
-    ip = function->code.data();
-
-    // if there's not enough room, grow the stack
-    //   + 1 so there is space for ccalls to store return values. TODO: need to clean this up
-    if( (stack_top+1) > stack_end )
-    {
-      ReallocStack( stack_top - stack );
-    }
+  bool IsTemporary( Object* object )
+  {
+    return object >= temporaries;
   }
 
   std::vector<StackFrame> stack_frame;
-  std::atomic<int> lock;
-  const int  process_id;
-  Process*    next;
 
-  // TODO: clean this all up using SafeRange
   Object*    stack;
   Object*    stack_end;
 
@@ -355,6 +486,148 @@ struct Process
     Object*    ccall_return_val;
   };
   Object*    temporaries;
+};
+
+// Runtime instance for lightweight asynchronous process.
+// In Eople, class constructors build a Process, not an object.
+struct Process
+{
+  Process( u32 in_process, VirtualMachine* in_vm, Process* old_list_head )
+    : process_id(in_process), vm(in_vm), next(old_list_head), incremental_ip_offset(0), incremental_locals_offset(0),
+      incremental_constants_offset(0), ip(nullptr)
+  {
+    lock.store(0);
+  }
+
+  Object* OperandA()
+  {
+    return stack.GetObjectAtOffset(ip->a);
+  }
+
+  Object* OperandB()
+  {
+    return stack.GetObjectAtOffset(ip->b);
+  }
+
+  Object* OperandC()
+  {
+    return stack.GetObjectAtOffset(ip->c);
+  }
+
+  Object* OperandD()
+  {
+    return stack.GetObjectAtOffset(ip->d);
+  }
+
+  Object* CCallReturnVal()
+  {
+    return stack.ccall_return_val;
+  }
+
+  bool IsTemporary( Object* object )
+  {
+    return stack.IsTemporary( object );
+  }
+
+  // Free memory from temp string (if it's actually a temp)
+  void TryCollectTempString( Object* temp )
+  {
+    if( stack.IsTemporary(temp) )
+    {
+      delete temp->string_ref;
+    }
+  }
+
+  // If destination is a temporary, this makes sure it's initialized so that values left over
+  //     from other (non-string) temporaries are not misinterpreted as pointers.
+  void TryInitTempString( Object* temp )
+  {
+    if( stack.IsTemporary(temp) )
+    {
+      temp->string_ref = new std::string();
+    }
+  }
+
+  void PopStackFrame()
+  {
+    stack.PopStackFrame();
+    if( !callstack.empty() )
+    {
+      ip = callstack.back(); callstack.pop_back();
+    }
+  }
+
+  void SetupStackFrame( const Function* function )
+  {
+    stack.SetupStackFrame(function);
+    callstack.push_back(ip);
+    ip = function->code.data();
+  }
+
+  void InitializeLocalsOnStack( const Function* function )
+  {
+    stack.InitializeLocals( function );
+  }
+
+  void PushConstantsToStack( const Function* function )
+  {
+    stack.PushConstants(function);
+  }
+
+  void PushArgsToStack( const Function* function, const VMCode* caller_ip, Object* src )
+  {
+    stack.PushArgs(function, caller_ip, src);
+  }
+
+  void PushArgsToStack( const Function* function, const Object* args )
+  {
+    stack.PushArgs(function, args);
+  }
+
+  void PushThisPointer( const Object &process_object )
+  {
+    stack.PushObjectAtOffset( process_object, 0 );
+  }
+
+  bool IncrementalStackShift( const Function* function )
+  {
+    size_t old_constants_count = incremental_constants_offset;
+    size_t old_locals_count = incremental_locals_offset;
+
+    size_t constants_copy_count = function->constant_count() - old_constants_count;
+    size_t old_offset = function->constants_start + old_constants_count;
+    size_t new_offset = function->locals_start;
+    if( new_offset != old_offset )
+    {
+      // move locals to new location
+      stack.ShiftSegment(old_offset, new_offset, old_locals_count);
+
+      if( function->locals_count() > old_locals_count )
+      {
+        size_t locals_init_count = function->locals_count() - old_locals_count;
+        // clear memory to simplify garbage collection
+        assert( stack.stack_base + function->locals_start + old_locals_count + locals_init_count <= stack.stack_end );
+        memset( stack.stack_base + function->locals_start + old_locals_count, 0, locals_init_count * sizeof(Object) );
+      }
+
+      if( constants_copy_count )
+      {
+        Object* new_constants = stack.stack_base + old_offset;
+        assert( (stack.stack_base + function->constants_start + function->constant_count()) <= stack.stack_end );
+        memcpy( new_constants, function->constants + old_constants_count, constants_copy_count * sizeof(Object) );
+      }
+
+      return true;
+    }
+
+    return false;
+  }
+
+  ProcessStack stack;
+  std::vector<const VMCode*> callstack;
+  std::atomic<int> lock;
+  const int  process_id;
+  Process*    next;
 
   // instruction pointer
   const VMCode* ip;

@@ -96,7 +96,7 @@ public:
       {
         --next_var_reg;
       }
-      entry.stack_index += next_const_reg++;
+      entry.stack_index = next_const_reg++;
     }
   }
 
