@@ -27,11 +27,11 @@ class GenExpressionDispatcher;
 class GenStatementDispatcher;
 class GetTypeDispatcher;
 
-class ByteCodeGen
+class VMCodeGen
 {
 public:
-  ByteCodeGen();
-  ~ByteCodeGen()
+  VMCodeGen();
+  ~VMCodeGen()
   {
   }
 
@@ -41,7 +41,7 @@ public:
 
   u32 GetErrorCount() { return m_error_count; }
 private:
-  ByteCodeGen& operator=(const ByteCodeGen &){}
+  VMCodeGen& operator=(const VMCodeGen &){}
 
   size_t GenExpressionTerm( Node::NodeCommon*, bool )
   {
@@ -146,7 +146,7 @@ private:
 class GenExpressionDispatcher : public ASTDispatcher<GenExpressionDispatcher>
 {
 public:
-  GenExpressionDispatcher( ByteCodeGen* code_gen, Node::NodeCommon* node, bool is_root )
+  GenExpressionDispatcher( VMCodeGen* code_gen, Node::NodeCommon* node, bool is_root )
     : m_code_gen(code_gen), m_is_root(is_root)
   {
     Dispatch(node);
@@ -161,7 +161,7 @@ public:
   size_t ReturnValue() { return m_return_val; }
 
 private:
-  ByteCodeGen* m_code_gen;
+  VMCodeGen* m_code_gen;
   size_t       m_return_val;
   bool         m_is_root;
 };
@@ -169,7 +169,7 @@ private:
 class GenStatementDispatcher : public ASTDispatcher<GenStatementDispatcher>
 {
 public:
-  GenStatementDispatcher( ByteCodeGen* code_gen, Node::NodeCommon* node )
+  GenStatementDispatcher( VMCodeGen* code_gen, Node::NodeCommon* node )
     : m_code_gen(code_gen)
   {
     Dispatch(node);
@@ -182,13 +182,13 @@ public:
   }
 
 private:
-  ByteCodeGen*      m_code_gen;
+  VMCodeGen*      m_code_gen;
 };
 
 class GetTypeDispatcher : public ASTDispatcher<GetTypeDispatcher>
 {
 public:
-  GetTypeDispatcher( ByteCodeGen* code_gen, Node::NodeCommon* node )
+  GetTypeDispatcher( VMCodeGen* code_gen, Node::NodeCommon* node )
     : m_code_gen(code_gen)
   {
     Dispatch(node);
@@ -203,7 +203,7 @@ public:
   type_t ReturnValue() { return m_return_val; }
 
 private:
-  ByteCodeGen* m_code_gen;
+  VMCodeGen* m_code_gen;
   type_t       m_return_val;
 };
 

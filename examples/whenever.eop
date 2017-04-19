@@ -1,0 +1,33 @@
+class Foo():
+    event_log = array(<string>)
+
+    whenever event_log.size() % 3 == 0:
+        print("Flushing event log...")
+        print(event_log)
+        event_log.clear()
+    end
+
+    def do_stuff():
+        # do some stuff...
+        # ...
+        # log an event
+        event_log.push("Hit some event.")
+    end
+
+    def do_other_stuff():
+        # do some other stuff...
+        # ...
+        # log an event
+        event_log.push("Hit some other event.")
+    end
+end
+
+def main():
+  foo = Foo()
+  foo->do_stuff()
+  foo->do_other_stuff()
+  foo->do_stuff()
+  foo->do_other_stuff()
+  foo->do_stuff()
+  foo->do_stuff()
+end

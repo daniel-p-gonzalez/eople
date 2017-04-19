@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/FBMachine/eople.svg?branch=master)](https://travis-ci.org/FBMachine/eople)
+[![Build Status](https://travis-ci.org/FBMachine/eople.svg?branch=topic_refactor)](https://travis-ci.org/FBMachine/eople)
 # Eople
 
 ## Introduction
@@ -336,7 +336,7 @@ A temporal loop in Eople is defined using the "whenever" statement. The block is
 ```
 eople> whenever later_comes and loop_is_active:
 ......     print("Is it groundhogs day?")
-......     // this causes the loop to re-trigger itself after 1 second
+......     # this causes the loop to re-trigger itself after 1 second
 ......     later_comes = after(1000)
 ...... end
 ```
@@ -354,21 +354,21 @@ class Foo():
 
     whenever event_log.size() % 3 == 0:
         print("Flushing to file...")
-        // ...
+        # ...
         event_log.clear()
     end
 
     def do_stuff():
-        // do some stuff...
-        // ...
-        // log an event
+        # do some stuff...
+        # ...
+        # log an event
         event_log.push("Hit some event.")
     end
 
     def do_other_stuff():
-        // do some other stuff...
-        // ...
-        // log an event
+        # do some other stuff...
+        # ...
+        # log an event
         event_log.push("Hit some other event.")
     end
 end
@@ -384,9 +384,9 @@ Keep in mind that Eople is a very young project (started at the end of 2013), an
 At this point, you should be feeling brave enough to take a look at the example code included in the distribution. To run the examples, you must first import them into the virtual environment:
 ```
 import(../examples/uhmfufu.eop)
-// View imported functions. In the future, externally visible functions must be within a namespace.
-//   Until that feature is implemented, there is global visibility.
+# View imported functions. In the future, externally visible functions must be within a namespace.
+#   Until that feature is implemented, there is global visibility.
 imported()
-// For the moment, calling imported functions must use special syntax. This requirement will go away soon.
+# For the moment, calling imported functions must use special syntax. This requirement will go away soon.
 call(Uhmfufu::main)
 ```

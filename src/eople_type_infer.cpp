@@ -7,7 +7,7 @@ namespace Eople
 {
 
 TypeInfer::TypeInfer()
-  : m_current_module(nullptr), m_error_count(0)
+  : m_current_module(nullptr), m_error_count(0), m_function(nullptr)
 {
 }
 
@@ -206,6 +206,13 @@ InferenceState TypeInfer::PropagateType( Node::Identifier* identifier, type_t ty
     state.type = type;
     state.clear = true;
   }
+  else if( my_type->type == ValueType::PROMISE && type->type == ValueType::PROMISE )
+  {
+    // TODO: this is a kludge to get static guards off the ground
+    identifier->is_guard = true;
+    state.type = type;
+    state.clear = true;
+  }
   else if( (my_type != TypeBuilder::GetNilType()) && (my_type != type) )
   {
     Log::Error("(%d): Type ERROR: Type of '%s' is %s, expected: %s.\n", identifier->line, identifier->name.c_str(),
@@ -268,7 +275,7 @@ InferenceState TypeInfer::PropagateType( Node::ProcessMessage* process_call, typ
   }
   if( func->parameters.size() != message->arguments.size() )
   {
-    Log::Error("(%d): Type ERROR: Expected %d arguments to '%s' function call, got %d\n", process_call->line, 
+    Log::Error("(%d): Type ERROR: Expected %d arguments to '%s' function call, got %d\n", process_call->line,
                           func->parameters.size(), func->name.c_str(), message->arguments.size());
     BumpError();
     state.clear = false;
@@ -381,15 +388,10 @@ InferenceState TypeInfer::PropagateType( Node::FunctionCall* function_call, type
 
   if( func->parameters.size() != function_call->arguments.size() )
   {
-    Log::Error("(%d): Type ERROR: Expected %d arguments to '%s' function call, got %d\n", function_call->line, 
+    Log::Error("(%d): Type ERROR: Expected %d arguments to '%s' function call, got %d\n", function_call->line,
                           func->parameters.size(), func->name.c_str(), function_call->arguments.size());
     BumpError();
     return state;
-  }
-
-  if( func->is_constructor )
-  {
-    func->TrySetValueType(TypeBuilder::GetProcessType(func->name));
   }
 
   size_t specialization = func->FindSpecializationForArgs( arg_types );
@@ -397,6 +399,11 @@ InferenceState TypeInfer::PropagateType( Node::FunctionCall* function_call, type
   func->current_specialization = specialization;
   function_call->SetSpecialization( m_function->current_specialization, specialization );
   m_function->RegisterFunctionCall( function_call );
+
+  if( func->is_constructor )
+  {
+    func->TrySetValueType(TypeBuilder::GetProcessType(func->name));
+  }
 
   if( func->is_constructor )
   {
@@ -528,7 +535,7 @@ InferenceState TypeInfer::PropagateType( Node::BinaryOp* binary_op, type_t type 
     case OpType::BXOR:
     case OpType::BOR:
     {
-      if( binary_op->op == OpType::SHL || binary_op->op == OpType::SHR || binary_op->op == OpType::BAND || 
+      if( binary_op->op == OpType::SHL || binary_op->op == OpType::SHR || binary_op->op == OpType::BAND ||
           binary_op->op == OpType::BXOR || binary_op->op == OpType::BOR )
       {
         if( type->type != ValueType::NIL && type->type != ValueType::INT )
@@ -641,7 +648,14 @@ void TypeInfer::InferStatement( Node::Assignment* assignment )
     }
   }
 
-  if( left_has_type )
+  auto left = assignment->left->GetAsIdentifier();
+  if( left && left->is_guard && right_state.type->type == ValueType::PROMISE )
+  {
+    // kludge to allow promise guard syntactic sugar
+    right_state.clear = true;
+    left_state.clear = true;
+  }
+  else if( left_has_type )
   {
     if( right_has_type && (right_state.type != left_state.type) )
     {
@@ -775,7 +789,7 @@ void TypeInfer::InferStatement( Node::FunctionCall* function_call )
   }
   if( func->parameters.size() != function_call->arguments.size() )
   {
-    Log::Error("(%d): Type Warning: Expected %d arguments to '%s' function call, got %d\n", function_call->line, 
+    Log::Error("(%d): Type Warning: Expected %d arguments to '%s' function call, got %d\n", function_call->line,
                           func->parameters.size(), func->name.c_str(), function_call->arguments.size());
     BumpError();
     return;
@@ -800,7 +814,7 @@ void TypeInfer::InferStatement( Node::ProcessMessage* process_message )
   }
   if( func->parameters.size() != message->arguments.size() )
   {
-    Log::Error("(%d): Type Warning: Expected %d arguments to '%s' function call, got %d\n", process_message->line, 
+    Log::Error("(%d): Type Warning: Expected %d arguments to '%s' function call, got %d\n", process_message->line,
                           func->parameters.size(), func->name.c_str(), message->arguments.size());
     BumpError();
     return;
@@ -1126,7 +1140,7 @@ void TypeInfer::InferFunctionCall( Node::Statement* node, Node::Function* func )
 
   if( func->parameters.size() != function_call->arguments.size() )
   {
-    Log::Error("(%d): Type ERROR: Expected %d arguments to '%s' function call, got %d\n", node->line, 
+    Log::Error("(%d): Type ERROR: Expected %d arguments to '%s' function call, got %d\n", node->line,
                           func->parameters.size(), func->name.c_str(), function_call->arguments.size());
     BumpError();
     return;
@@ -1151,7 +1165,7 @@ void TypeInfer::InferProcessMessage( Node::Statement* node, Node::Function* func
 
   if( func->parameters.size() != function_call->arguments.size() )
   {
-    Log::Error("(%d): Type ERROR: Expected %d arguments to '%s' function call, got %d\n", node->line, 
+    Log::Error("(%d): Type ERROR: Expected %d arguments to '%s' function call, got %d\n", node->line,
                           func->parameters.size(), func->name.c_str(), function_call->arguments.size());
     BumpError();
     return;

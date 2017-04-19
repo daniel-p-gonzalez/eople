@@ -387,141 +387,6 @@ void VirtualMachine::SendMessage( CallData call_data )
   }
 }
 
-void CopyArgs( const Function* function, process_t process_ref, Object* dest )
-{
-  size_t parameter_count = function->parameter_count();
-  if( !parameter_count )
-  {
-    return;
-  }
-
-  if( parameter_count <= 3 )
-  {
-    if( parameter_count == 3 )
-    {
-      dest[0] = *process_ref->OperandB();
-      dest[1] = *process_ref->OperandC();
-      dest[2] = *process_ref->OperandD();
-    }
-    else if( parameter_count == 2 )
-    {
-      dest[0] = *process_ref->OperandB();
-      dest[1] = *process_ref->OperandC();
-    }
-    else
-    {
-      dest[0] = *process_ref->OperandB();
-    }
-  }
-  else // TODO: make sure this all makes sense
-  {
-    // copy args to stack
-    for( size_t i = 0; (i+3) < parameter_count; )
-    {
-      // first operand is function object in first instruction, so skip that
-      if( i == 0 )
-      {
-        dest[i]   = *process_ref->OperandB();
-        dest[i+1] = *process_ref->OperandC();
-        dest[i+2] = *process_ref->OperandD();
-        i+=3;
-      }
-      else
-      {
-        dest[i]   = *process_ref->OperandA();
-        dest[i+1] = *process_ref->OperandB();
-        dest[i+2] = *process_ref->OperandC();
-        dest[i+3] = *process_ref->OperandD();
-        i+=4;
-      }
-    }
-
-    const size_t remainder = parameter_count % 4;
-    const size_t last      = parameter_count - remainder;
-
-    if( remainder == 3 )
-    {
-      dest[last]   = *process_ref->OperandA();
-      dest[last+1] = *process_ref->OperandB();
-      dest[last+2] = *process_ref->OperandC();
-    }
-    else if( remainder == 2 )
-    {
-      dest[last]   = *process_ref->OperandA();
-      dest[last+1] = *process_ref->OperandB();
-    }
-    else if( remainder == 1 )
-    {
-      dest[last] = *process_ref->OperandA();
-    }
-  }
-}
-
-// TODO: refactor with above
-void CopyConstructorArgs( const Function* function, process_t process_ref, Object* dest )
-{
-  size_t parameter_count = function->parameter_count();
-  if( !parameter_count )
-  {
-    return;
-  }
-
-  if( parameter_count <= 2 )
-  {
-    if( parameter_count == 2 )
-    {
-      dest[0] = *process_ref->OperandC();
-      dest[1] = *process_ref->OperandD();
-    }
-    else
-    {
-      dest[0] = *process_ref->OperandC();
-    }
-  }
-  else // TODO: make sure this all makes sense
-  {
-    // copy args to stack
-    size_t i = 0;
-    for( ; (i+3) < parameter_count; ++process_ref->ip )
-    {
-      // first operand is function object in first instruction, so skip that
-      if( i == 0 )
-      {
-        dest[i]   = *process_ref->OperandC();
-        dest[i+1] = *process_ref->OperandD();
-        i+=2;
-      }
-      else
-      {
-        dest[i]   = *process_ref->OperandA();
-        dest[i+1] = *process_ref->OperandB();
-        dest[i+2] = *process_ref->OperandC();
-        dest[i+3] = *process_ref->OperandD();
-        i+=4;
-      }
-    }
-
-    const size_t remainder = parameter_count - i;
-    const size_t last      = i;
-
-    if( remainder == 3 )
-    {
-      dest[last]   = *process_ref->OperandA();
-      dest[last+1] = *process_ref->OperandB();
-      dest[last+2] = *process_ref->OperandC();
-    }
-    else if( remainder == 2 )
-    {
-      dest[last]   = *process_ref->OperandA();
-      dest[last+1] = *process_ref->OperandB();
-    }
-    else if( remainder == 1 )
-    {
-      dest[last] = *process_ref->OperandA();
-    }
-  }
-}
-
 void VirtualMachine::ExecuteConstructor( CallData call_data, process_t caller )
 {
   const Function* function    = call_data.function;
@@ -530,15 +395,14 @@ void VirtualMachine::ExecuteConstructor( CallData call_data, process_t caller )
   process_ref->SetupStackFrame( function );
 
   // copy constants to stack
-  assert( (process_ref->stack + function->constants_start + function->constant_count()) <= process_ref->stack_end );
-  memcpy( process_ref->stack + function->constants_start, function->constants, function->constant_count() * sizeof(Object) );
+  process_ref->PushConstantsToStack(function);
 
   // copy function call args to stack, after 'this' reference
-  CopyConstructorArgs( function, caller, process_ref->stack+1 );
+  Object* src = caller->stack.stack_base;
+  process_ref->PushArgsToStack( function, caller->ip, src );
 
   // set 'this' process reference
-  assert( process_ref->stack < process_ref->stack_end );
-  call_data.process_ref->stack[0] = Object::GetProcess(call_data.process_ref);
+  process_ref->PushThisPointer(Object::BuildProcess(call_data.process_ref));
 
   ExecutionLoop(call_data);
 }
@@ -554,23 +418,19 @@ void VirtualMachine::ExecuteProcessMessage( CallData call_data )
     process_ref->SetupStackFrame( function );
 
     // copy args to stack
-    assert( (process_ref->stack + function->parameters_start + function->parameter_count()) <= process_ref->stack_end );
-    memcpy( process_ref->stack + function->parameters_start, args, sizeof(Object) * function->parameter_count() );
+    process_ref->PushArgsToStack(function, args);
     delete[] args;
 
     // copy constants to stack
-    assert( (process_ref->stack + function->constants_start + function->constant_count()) <= process_ref->stack_end );
-    memcpy( process_ref->stack + function->constants_start, function->constants, function->constant_count() * sizeof(Object) );
-    // TODO: only necessary because of how string/array memory management is currently implemented
-    assert( (process_ref->stack + function->locals_start + function->locals_count()) <= process_ref->stack_end );
-    memset( process_ref->stack + function->locals_start, 0, function->locals_count() * sizeof(Object) );
+    process_ref->PushConstantsToStack(function);
+    process_ref->InitializeLocalsOnStack(function);
 
     ExecutionLoop(call_data);
 
     // notify caller that the promise is ready
     if( call_data.promise )
     {
-      call_data.promise->value = *process_ref->stack_base;
+      call_data.promise->value = *process_ref->stack.GetObjectAtOffset(0);
       call_data.promise->is_ready = true;
       SendMessage( CallData( nullptr, call_data.promise->owner, nullptr, call_data.promise ) );
       call_data.promise = nullptr;
@@ -588,30 +448,13 @@ void VirtualMachine::ExecuteProcessMessage( CallData call_data )
       when.eval = when.eval->updated_function.load();
     }
     process_ref->SetupStackFrame( when.eval );
-    auto old_base = process_ref->stack_base;
-    process_ref->stack_base = process_ref->stack + when.base_offset;
-    process_ref->stack_top += process_ref->stack_base - old_base;
-    process_ref->temporaries += process_ref->stack_base - old_base;
-    // TODO: this is a hack to determine whether this when statement is within constructor
-    //if( when.eval->parameters_start > 0 )
-    //{
-    //  // copy constants to stack
-    //  assert( (process_ref->stack + when.eval->locals_start + when.eval->locals_count() + when.base_offset) <= process_ref->stack_end );
-    //  memcpy( process_ref->stack + when.eval->locals_start + when.base_offset, when.eval->constants, when.eval->locals_count() * sizeof(Object) );
-    //}
+    process_ref->stack.ApplyClosureState( when.eval, when.closure_state );
 
-    if( when.context.base )
-    {
-      // copy closure state to stack
-      assert( (process_ref->stack_base + when.eval->parameters_start + when.context.size()) <= process_ref->stack_end );
-      memcpy( process_ref->stack_base + when.eval->parameters_start, when.context.base, when.context.size() * sizeof(Object) );
-    }
-
-    const ByteCode* &ip = process_ref->ip;
+    const VMCode* &ip = process_ref->ip;
     if( ip->instruction(process_ref) )
     {
       // when branch taken. swap with last element and pop to remove.
-      when_blocks[i] = when_blocks.back();
+      when_blocks[i] = std::move(when_blocks.back());
       when_blocks.pop_back();
       // process i again
       continue;
@@ -628,40 +471,22 @@ void VirtualMachine::ExecuteProcessMessage( CallData call_data )
       whenever.eval = whenever.eval->updated_function.load();
     }
     process_ref->SetupStackFrame( whenever.eval );
-    auto old_base = process_ref->stack_base;
-    process_ref->stack_base = process_ref->stack + whenever.base_offset;
-    process_ref->stack_top += process_ref->stack_base - old_base;
-    process_ref->temporaries += process_ref->stack_base - old_base;
-    //if( whenever.eval->parameters_start > 0 )
-    //{
-    //  // copy constants to stack
-    //  assert( (process_ref->stack + whenever.eval->locals_start + whenever.eval->locals_count() + whenever.base_offset) <= process_ref->stack_end );
-    //  memcpy( process_ref->stack + whenever.eval->locals_start + whenever.base_offset, whenever.eval->constants, whenever.eval->locals_count() * sizeof(Object) );
-    //}
+    process_ref->stack.ApplyClosureState( whenever.eval, whenever.closure_state );
 
-    if( whenever.context.base )
-    {
-      // copy closure state to stack
-      assert( (process_ref->stack_base + whenever.eval->parameters_start + whenever.context.size()) <= process_ref->stack_end );
-      memcpy( process_ref->stack_base + whenever.eval->parameters_start, whenever.context.base, whenever.context.size() * sizeof(Object) );
-    }
-
-    const ByteCode* &ip = process_ref->ip;
+    const VMCode* &ip = process_ref->ip;
     if( ip->instruction(process_ref) )
     {
-      if( !process_ref->ccall_return_val->bool_val )
+      if( !process_ref->CCallReturnVal()->bool_val )
       {
         // broke out of loop. swap with last element and pop to remove.
-        when_blocks[i] = when_blocks.back();
-        when_blocks.pop_back();
+        whenever_blocks[i] = std::move(whenever_blocks.back());
+        whenever_blocks.pop_back();
         // process i again
         continue;
       }
-      else if( whenever.context.base )
+      else
       {
-        // update closure state
-        assert( (process_ref->stack_base + whenever.eval->parameters_start + whenever.context.size()) <= process_ref->stack_end );
-        memcpy( whenever.context.base, process_ref->stack_base + whenever.eval->parameters_start, whenever.context.size() * sizeof(Object) );
+        whenever.closure_state = std::move(process_ref->stack.CaptureClosure(whenever.eval));
       }
     }
     ++i;
@@ -678,35 +503,14 @@ void VirtualMachine::ExecuteFunction( CallData call_data )
   const Function* function    = call_data.function;
   process_t       process_ref = call_data.process_ref;
 
-  // grab old stack base offset so args can be copied from the right offset.
-  // using offset instead of pointer since stack may grow
-  size_t stack_base_offset = process_ref->stack_base - process_ref->stack;
-  // grab ip as well for current instruction
-  const ByteCode* old_ip = process_ref->ip;
+  // grab ip for current instruction as it holds function call args
+  const VMCode* old_ip = process_ref->ip;
+  Object* dest = process_ref->stack.stack_base;
   // setup new stack frame, potentially growing the stack
   process_ref->SetupStackFrame( function );
-
-  // stash new stack base to restore after arg copy
-  Object* new_stack_base = process_ref->stack_base;
-  const ByteCode* new_ip = process_ref->ip;
-
-  // temporarily set stack base and ip to caller version to simplify arg copy
-  process_ref->stack_base = process_ref->stack + stack_base_offset;
-  process_ref->ip = old_ip;
-  assert( (process_ref->stack_end - new_stack_base) > function->parameter_count() );
-  CopyArgs( function, process_ref, new_stack_base );
-  process_ref->ip = new_ip;
-
-  // restore new stack base
-  process_ref->stack_base = new_stack_base;
-
-  // TODO: replace ALL memcpy / memset calls with SafeRange operations
-  // copy constants to stack
-  assert( (process_ref->stack_base + function->constants_start + function->constant_count()) <= process_ref->stack_end );
-  memcpy( process_ref->stack_base + function->constants_start, function->constants, function->constant_count() * sizeof(Object) );
-  // TODO: only necessary because of how string/array memory management is currently implemented
-  assert( (process_ref->stack_base + function->locals_start + function->locals_count()) <= process_ref->stack_end );
-  memset( process_ref->stack_base + function->locals_start, 0, function->locals_count() * sizeof(Object) );
+  process_ref->PushArgsToStack( function, old_ip, dest );
+  process_ref->PushConstantsToStack( function );
+  process_ref->InitializeLocalsOnStack( function );
 
   ExecutionLoop(call_data);
   process_ref->PopStackFrame();
@@ -730,213 +534,194 @@ void VirtualMachine::ExecuteFunctionIncremental( CallData call_data )
   }
 
   // setup new stack frame, potentially growing the stack
-  if( !process_ref->stack_frame.empty() )
-  {
-    process_ref->PopStackFrame();
-  }
+  process_ref->PopStackFrame();
   process_ref->SetupStackFrame( function );
 
-  // TODO: replace ALL memcpy / memset calls with SafeRange operations
+  bool shifted = process_ref->IncrementalStackShift(function);
 
-  size_t old_constants_count = process_ref->incremental_constants_offset;
-  size_t old_locals_count = process_ref->incremental_locals_offset;
-
-  size_t constants_copy_count = function->constant_count() - old_constants_count;
-
-  Object* new_locals = process_ref->stack_base + function->locals_start;
-  Object* old_locals = process_ref->stack_base + function->constants_start + old_constants_count;
-
-  // copy old locals to new stack location after constants
-  if( new_locals != old_locals )
-  {
-    size_t locals_copy_count = old_locals_count;
-    assert( (new_locals + locals_copy_count) <= process_ref->stack_end );
-    memmove( new_locals, old_locals, sizeof(Object) * locals_copy_count );
-
-    // TODO: make sure this work in any context.
-    // Adjust when and whenever captured closures
-    auto adjust_block =
-          [old_constants_count, locals_copy_count](std::vector<WhenBlock> &blocks)
-          {
-            for( auto &block : blocks )
-            {
-              if( !block.context.base )
-              {
-                continue;
-              }
-              // hot swap when/whenever eval function
-              if( block.eval->updated_function.load() != nullptr )
-              {
-                block.eval = block.eval->updated_function.load();
-              }
-              // make room if capture size grew
-              size_t new_context_size = block.eval->locals_count() + block.eval->parameter_count() + block.eval->constant_count();
-              if( new_context_size != block.context.size() )
-              {
-                Object* new_context = new Object[new_context_size];
-                memcpy( new_context, block.context.base, block.context.size() * sizeof(Object) );
-                delete[] block.context.base;
-                block.context = SafeRange<Object>( new_context, new_context + new_context_size );
-              }
-
-              Object* base = block.context.base - block.eval->parameters_start;
-              Object* new_block_locals = base + block.eval->locals_start;
-              Object* old_block_locals = base + block.eval->constants_start + old_constants_count;
-              assert( (new_block_locals + locals_copy_count) <= base + block.context.size() );
-              memmove( new_block_locals, old_block_locals, sizeof(Object) * locals_copy_count );
-            }
-          };
-
-    adjust_block(process_ref->when_blocks);
-    adjust_block(process_ref->whenever_blocks);
-  }
-
-  // TODO: what happens if locals count shrinks?
-  if( old_locals_count < function->locals_count() )
-  {
-    size_t locals_init_count = function->locals_count() - old_locals_count;
-    // TODO: only necessary because of how string/array memory management is currently implemented
-    memset( process_ref->stack_base + function->locals_start + old_locals_count, 0, locals_init_count * sizeof(Object) );
-    // TODO: make sure this work in any context.
-    // Adjust when and whenever captured closures
-    auto adjust_block =
-          [old_locals_count, locals_init_count](std::vector<WhenBlock> &blocks)
-          {
-            for( auto &block : blocks )
-            {
-              if( !block.context.base )
-              {
-                continue;
-              }
-              Object* base = block.context.base - block.eval->parameters_start;
-              memset( base + block.eval->locals_start + old_locals_count, 0, locals_init_count * sizeof(Object) );
-            }
-          };
-
-    adjust_block(process_ref->when_blocks);
-    adjust_block(process_ref->whenever_blocks);
-  }
-
-  // copy new constants to stack after old constants
-  if( constants_copy_count )
-  {
-    Object* new_constants = old_locals;
-    assert( (process_ref->stack_base + function->constants_start + function->constant_count()) <= process_ref->stack_end );
-    memcpy( new_constants, function->constants + old_constants_count, constants_copy_count * sizeof(Object) );
-    // TODO: make sure this work in any context.
-    // Adjust when and whenever captured closures
-    auto adjust_block =
-          [function, old_constants_count, constants_copy_count](std::vector<WhenBlock> &blocks)
-          {
-            for( auto &block : blocks )
-            {
-              if( !block.context.base )
-              {
-                continue;
-              }
-              Object* base = block.context.base - block.eval->parameters_start;
-              Object* new_block_constants = base + block.eval->constants_start + old_constants_count;
-              memcpy( new_block_constants, function->constants + old_constants_count, constants_copy_count * sizeof(Object) );
-            }
-          };
-
-    adjust_block(process_ref->when_blocks);
-    adjust_block(process_ref->whenever_blocks);
-  }
+//   if( shifted )
+//   {
+//     // TODO: make sure this work in any context.
+//     // Adjust when and whenever captured closures
+//     auto adjust_block =
+//           [old_constants_count, locals_copy_count](std::vector<WhenBlock> &blocks)
+//           {
+//             for( auto &block : blocks )
+//             {
+//               if( !block.context.base )
+//               {
+//                 continue;
+//               }
+//               // hot swap when/whenever eval function
+//               if( block.eval->updated_function.load() != nullptr )
+//               {
+//                 block.eval = block.eval->updated_function.load();
+//               }
+//               // make room if capture size grew
+//               size_t new_context_size = block.eval->locals_count() + block.eval->parameter_count() + block.eval->constant_count();
+//               if( new_context_size != block.context.size() )
+//               {
+//                 Object* new_context = new Object[new_context_size];
+//                 memcpy( new_context, block.context.base, block.context.size() * sizeof(Object) );
+//                 delete[] block.context.base;
+//                 block.context = SafeRange<Object>( new_context, new_context + new_context_size );
+//               }
+//
+//               Object* base = block.context.base - block.eval->parameters_start;
+//               Object* new_block_locals = base + block.eval->locals_start;
+//               Object* old_block_locals = base + block.eval->constants_start + old_constants_count;
+//               assert( (new_block_locals + locals_copy_count) <= base + block.context.size() );
+//               memmove( new_block_locals, old_block_locals, sizeof(Object) * locals_copy_count );
+//             }
+//           };
+//
+//     adjust_block(process_ref->when_blocks);
+//     adjust_block(process_ref->whenever_blocks);
+//   }
+//
+//   // TODO: what happens if locals count shrinks?
+//   if( old_locals_count < function->locals_count() )
+//   {
+//     // TODO: make sure this work in any context.
+//     // Adjust when and whenever captured closures
+//     auto adjust_block =
+//           [old_locals_count, locals_init_count](std::vector<WhenBlock> &blocks)
+//           {
+//             for( auto &block : blocks )
+//             {
+//               if( !block.context.base )
+//               {
+//                 continue;
+//               }
+//               Object* base = block.context.base - block.eval->parameters_start;
+//               memset( base + block.eval->locals_start + old_locals_count, 0, locals_init_count * sizeof(Object) );
+//             }
+//           };
+//
+//     adjust_block(process_ref->when_blocks);
+//     adjust_block(process_ref->whenever_blocks);
+//   }
+//
+//   // copy new constants to stack after old constants
+//   if( constants_copy_count )
+//   {
+//     Object* new_constants = old_locals;
+//     assert( (process_ref->stack_base + function->constants_start + function->constant_count()) <= process_ref->stack_end );
+//     memcpy( new_constants, function->constants + old_constants_count, constants_copy_count * sizeof(Object) );
+//     // TODO: make sure this work in any context.
+//     // Adjust when and whenever captured closures
+//     auto adjust_block =
+//           [function, old_constants_count, constants_copy_count](std::vector<WhenBlock> &blocks)
+//           {
+//             for( auto &block : blocks )
+//             {
+//               if( !block.context.base )
+//               {
+//                 continue;
+//               }
+//               Object* base = block.context.base - block.eval->parameters_start;
+//               Object* new_block_constants = base + block.eval->constants_start + old_constants_count;
+//               memcpy( new_block_constants, function->constants + old_constants_count, constants_copy_count * sizeof(Object) );
+//             }
+//           };
+//
+//     adjust_block(process_ref->when_blocks);
+//     adjust_block(process_ref->whenever_blocks);
+//   }
   process_ref->incremental_constants_offset = function->constant_count();
   process_ref->incremental_locals_offset = function->locals_count();
 
   ExecutionLoopIncremental(call_data);
 //  process_ref->PopStackFrame();
-
-  auto &when_blocks = process_ref->when_blocks;
-  for( size_t i = 0; i < when_blocks.size(); process_ref->PopStackFrame() )
-  {
-    auto &when = when_blocks[i];
-    if( when.eval->updated_function.load() != nullptr )
-    {
-      when.eval = when.eval->updated_function.load();
-    }
-    process_ref->SetupStackFrame( when.eval );
-    auto old_base = process_ref->stack_base;
-    process_ref->stack_base = process_ref->stack + when.base_offset;
-    process_ref->stack_top += process_ref->stack_base - old_base;
-    process_ref->temporaries += process_ref->stack_base - old_base;
-    // TODO: this is a hack to determine whether this when statement is within constructor
-    //if( when.eval->parameters_start > 0 )
-    //{
-    //  // copy constants to stack
-    //  assert( (process_ref->stack + when.eval->locals_start + when.eval->locals_count() + when.base_offset) <= process_ref->stack_end );
-    //  memcpy( process_ref->stack + when.eval->locals_start + when.base_offset, when.eval->constants, when.eval->locals_count() * sizeof(Object) );
-    //}
-
-    if( when.context.base )
-    {
-      // copy closure state to stack
-      assert( (process_ref->stack_base + when.eval->parameters_start + when.context.size()) <= process_ref->stack_end );
-      memcpy( process_ref->stack_base + when.eval->parameters_start, when.context.base, when.context.size() * sizeof(Object) );
-    }
-
-    const ByteCode* &ip = process_ref->ip;
-    if( ip->instruction(process_ref) )
-    {
-      // when branch taken. swap with last element and pop to remove.
-      when_blocks[i] = when_blocks.back();
-      when_blocks.pop_back();
-      // process i again
-      continue;
-    }
-    ++i;
-  }
-
-  auto &whenever_blocks = process_ref->whenever_blocks;
-  for( size_t i = 0; i < whenever_blocks.size(); process_ref->PopStackFrame() )
-  {
-    auto &whenever = whenever_blocks[i];
-    if( whenever.eval->updated_function.load() != nullptr )
-    {
-      whenever.eval = whenever.eval->updated_function.load();
-    }
-    process_ref->SetupStackFrame( whenever.eval );
-    auto old_base = process_ref->stack_base;
-    process_ref->stack_base = process_ref->stack + whenever.base_offset;
-    process_ref->stack_top += process_ref->stack_base - old_base;
-    process_ref->temporaries += process_ref->stack_base - old_base;
-    //if( whenever.eval->parameters_start > 0 )
-    //{
-    //  // copy constants to stack
-    //  assert( (process_ref->stack + whenever.eval->locals_start + whenever.eval->locals_count() + whenever.base_offset) <= process_ref->stack_end );
-    //  memcpy( process_ref->stack + whenever.eval->locals_start + whenever.base_offset, whenever.eval->constants, whenever.eval->locals_count() * sizeof(Object) );
-    //}
-
-    if( whenever.context.base )
-    {
-      // copy closure state to stack
-      assert( (process_ref->stack_base + whenever.eval->parameters_start + whenever.context.size()) <= process_ref->stack_end );
-      memcpy( process_ref->stack_base + whenever.eval->parameters_start, whenever.context.base, whenever.context.size() * sizeof(Object) );
-    }
-
-    const ByteCode* &ip = process_ref->ip;
-    if( ip->instruction(process_ref) )
-    {
-      if( !process_ref->ccall_return_val->bool_val )
-      {
-        // broke out of loop. swap with last element and pop to remove.
-        when_blocks[i] = when_blocks.back();
-        when_blocks.pop_back();
-        // process i again
-        continue;
-      }
-      else if( whenever.context.base )
-      {
-        // update closure state
-        assert( (process_ref->stack_base + whenever.eval->parameters_start + whenever.context.size()) <= process_ref->stack_end );
-        memcpy( whenever.context.base, process_ref->stack_base + whenever.eval->parameters_start, whenever.context.size() * sizeof(Object) );
-      }
-    }
-    ++i;
-  }
-
+//
+//   auto &when_blocks = process_ref->when_blocks;
+//   for( size_t i = 0; i < when_blocks.size(); process_ref->PopStackFrame() )
+//   {
+//     auto &when = when_blocks[i];
+//     if( when.eval->updated_function.load() != nullptr )
+//     {
+//       when.eval = when.eval->updated_function.load();
+//     }
+//     process_ref->SetupStackFrame( when.eval );
+//     auto old_base = process_ref->stack_base;
+//     process_ref->stack_base = process_ref->stack + when.base_offset;
+//     process_ref->stack_top += process_ref->stack_base - old_base;
+//     process_ref->temporaries += process_ref->stack_base - old_base;
+//     // TODO: this is a hack to determine whether this when statement is within constructor
+//     //if( when.eval->parameters_start > 0 )
+//     //{
+//     //  // copy constants to stack
+//     //  assert( (process_ref->stack + when.eval->locals_start + when.eval->locals_count() + when.base_offset) <= process_ref->stack_end );
+//     //  memcpy( process_ref->stack + when.eval->locals_start + when.base_offset, when.eval->constants, when.eval->locals_count() * sizeof(Object) );
+//     //}
+//
+//     if( when.context.base )
+//     {
+//       // copy closure state to stack
+//       assert( (process_ref->stack_base + when.eval->parameters_start + when.context.size()) <= process_ref->stack_end );
+//       memcpy( process_ref->stack_base + when.eval->parameters_start, when.context.base, when.context.size() * sizeof(Object) );
+//     }
+//
+//     const VMCode* &ip = process_ref->ip;
+//     if( ip->instruction(process_ref) )
+//     {
+//       // when branch taken. swap with last element and pop to remove.
+//       when_blocks[i] = when_blocks.back();
+//       when_blocks.pop_back();
+//       // process i again
+//       continue;
+//     }
+//     ++i;
+//   }
+//
+//   auto &whenever_blocks = process_ref->whenever_blocks;
+//   for( size_t i = 0; i < whenever_blocks.size(); process_ref->PopStackFrame() )
+//   {
+//     auto &whenever = whenever_blocks[i];
+//     if( whenever.eval->updated_function.load() != nullptr )
+//     {
+//       whenever.eval = whenever.eval->updated_function.load();
+//     }
+//     process_ref->SetupStackFrame( whenever.eval );
+//     auto old_base = process_ref->stack_base;
+//     process_ref->stack_base = process_ref->stack + whenever.base_offset;
+//     process_ref->stack_top += process_ref->stack_base - old_base;
+//     process_ref->temporaries += process_ref->stack_base - old_base;
+//     //if( whenever.eval->parameters_start > 0 )
+//     //{
+//     //  // copy constants to stack
+//     //  assert( (process_ref->stack + whenever.eval->locals_start + whenever.eval->locals_count() + whenever.base_offset) <= process_ref->stack_end );
+//     //  memcpy( process_ref->stack + whenever.eval->locals_start + whenever.base_offset, whenever.eval->constants, whenever.eval->locals_count() * sizeof(Object) );
+//     //}
+//
+//     if( whenever.context.base )
+//     {
+//       // copy closure state to stack
+//       assert( (process_ref->stack_base + whenever.eval->parameters_start + whenever.context.size()) <= process_ref->stack_end );
+//       memcpy( process_ref->stack_base + whenever.eval->parameters_start, whenever.context.base, whenever.context.size() * sizeof(Object) );
+//     }
+//
+//     const VMCode* &ip = process_ref->ip;
+//     if( ip->instruction(process_ref) )
+//     {
+//       if( !process_ref->CCallReturnVal()->bool_val )
+//       {
+//         // broke out of loop. swap with last element and pop to remove.
+//         when_blocks[i] = when_blocks.back();
+//         when_blocks.pop_back();
+//         // process i again
+//         continue;
+//       }
+//       else if( whenever.context.base )
+//       {
+//         // update closure state
+//         assert( (process_ref->stack_base + whenever.eval->parameters_start + whenever.context.size()) <= process_ref->stack_end );
+//         memcpy( whenever.context.base, process_ref->stack_base + whenever.eval->parameters_start, whenever.context.size() * sizeof(Object) );
+//       }
+//     }
+//     ++i;
+//   }
+//
   queue_lock.unlock();
 }
 

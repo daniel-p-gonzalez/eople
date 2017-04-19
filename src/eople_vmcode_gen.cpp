@@ -1,4 +1,4 @@
-#include "eople_bytecode_gen.h"
+#include "eople_vmcode_gen.h"
 #include "eople_control_flow.h"
 #include "eople_binop.h"
 
@@ -11,14 +11,14 @@
 namespace Eople
 {
 
-ByteCodeGen::ByteCodeGen()
+VMCodeGen::VMCodeGen()
   : m_current_module(nullptr), m_result_index((size_t)-1), m_function(nullptr),
     m_current_operand(0), m_current_temp(0), m_error_count(0),
     m_base_stack_offset(0), m_opcode_count(0)
 {
 }
 
-std::unique_ptr<ExecutableModule> ByteCodeGen::InitModule( Node::Module* module )
+std::unique_ptr<ExecutableModule> VMCodeGen::InitModule( Node::Module* module )
 {
   auto executable_module = std::unique_ptr<ExecutableModule>( new ExecutableModule(module) );
 
@@ -62,14 +62,14 @@ std::unique_ptr<ExecutableModule> ByteCodeGen::InitModule( Node::Module* module 
 #define SYMBOL_TO_STACK(node) (m_function_node->GetStackIndex(node))
 
 // double dispatch support
-size_t ByteCodeGen::GenExpressionTerm( Node::Expression* node, bool is_root )
+size_t VMCodeGen::GenExpressionTerm( Node::Expression* node, bool is_root )
 {
   // dispatch call to concrete type
   GenExpressionDispatcher dispatcher(this, node, is_root);
   return dispatcher.ReturnValue();
 }
 
-size_t ByteCodeGen::GenExpressionTerm( Node::Identifier* identifier, bool )
+size_t VMCodeGen::GenExpressionTerm( Node::Identifier* identifier, bool )
 {
   // TODO: this is a kludge to get static guards off the ground
   if( identifier->is_guard )
@@ -93,38 +93,38 @@ size_t ByteCodeGen::GenExpressionTerm( Node::Identifier* identifier, bool )
   return SYMBOL_TO_STACK(identifier);
 }
 
-size_t ByteCodeGen::GenExpressionTerm( Node::Literal* literal, bool )
+size_t VMCodeGen::GenExpressionTerm( Node::Literal* literal, bool )
 {
   switch( literal->GetValueType()->type )
   {
     case ValueType::FLOAT:
     {
       size_t stack_index = SYMBOL_TO_STACK(literal);
-      *StackObject(stack_index) = Object::GetFloat(literal->GetAsFloatLiteral()->value);
+      *StackObject(stack_index) = Object::BuildFloat(literal->GetAsFloatLiteral()->value);
       return stack_index;
     }
     case ValueType::INT:
     {
       size_t stack_index = SYMBOL_TO_STACK(literal);
-      *StackObject(stack_index) = Object::GetInt(literal->GetAsIntLiteral()->value);
+      *StackObject(stack_index) = Object::BuildInt(literal->GetAsIntLiteral()->value);
       return stack_index;
     }
     case ValueType::BOOL:
     {
       size_t stack_index = SYMBOL_TO_STACK(literal);
-      *StackObject(stack_index) = Object::GetBool(literal->GetAsBoolLiteral()->value);
+      *StackObject(stack_index) = Object::BuildBool(literal->GetAsBoolLiteral()->value);
       return stack_index;
     }
     case ValueType::STRING:
     {
       size_t stack_index = SYMBOL_TO_STACK(literal);
-      *StackObject(stack_index) = Object::GetString(literal->GetAsStringLiteral()->value);
+      *StackObject(stack_index) = Object::BuildString(literal->GetAsStringLiteral()->value);
       return stack_index;
     }
     case ValueType::TYPE:
     {
       size_t stack_index = SYMBOL_TO_STACK(literal);
-      *StackObject(stack_index) = Object::GetType(literal->GetAsTypeLiteral()->type);
+      *StackObject(stack_index) = Object::BuildType(literal->GetAsTypeLiteral()->type);
       return stack_index;
     }
   }
@@ -134,7 +134,7 @@ size_t ByteCodeGen::GenExpressionTerm( Node::Literal* literal, bool )
   return (size_t)-1;
 }
 
-size_t ByteCodeGen::GenExpressionTerm( Node::BinaryOp* binary_op, bool is_root )
+size_t VMCodeGen::GenExpressionTerm( Node::BinaryOp* binary_op, bool is_root )
 {
   Opcode opcode = Opcode::NOP;
 
@@ -285,7 +285,7 @@ size_t ByteCodeGen::GenExpressionTerm( Node::BinaryOp* binary_op, bool is_root )
   return m_current_temp++;
 }
 
-size_t ByteCodeGen::GenExpressionTerm( Node::FunctionCall* function_call, bool is_root )
+size_t VMCodeGen::GenExpressionTerm( Node::FunctionCall* function_call, bool is_root )
 {
   GenFunctionCall(function_call);
   size_t dest = is_root ? m_result_index : m_current_temp++;
@@ -301,7 +301,7 @@ size_t ByteCodeGen::GenExpressionTerm( Node::FunctionCall* function_call, bool i
   return dest;
 }
 
-size_t ByteCodeGen::GenExpressionTerm( Node::ProcessMessage* process_message, bool is_root )
+size_t VMCodeGen::GenExpressionTerm( Node::ProcessMessage* process_message, bool is_root )
 {
   GenProcessMessage(process_message);
   size_t dest = is_root ? m_result_index : m_current_temp++;
@@ -313,7 +313,7 @@ size_t ByteCodeGen::GenExpressionTerm( Node::ProcessMessage* process_message, bo
   return dest;
 }
 
-size_t ByteCodeGen::GenExpressionTerm( Node::ArrayDereference* array_dereference, bool is_root )
+size_t VMCodeGen::GenExpressionTerm( Node::ArrayDereference* array_dereference, bool is_root )
 {
   size_t stack_index = SYMBOL_TO_STACK(array_dereference);
   auto array_deref_obj = array_dereference->GetAsArrayDereference();
@@ -333,11 +333,11 @@ size_t ByteCodeGen::GenExpressionTerm( Node::ArrayDereference* array_dereference
   return m_current_temp++;
 }
 
-size_t ByteCodeGen::GenExpressionTerm( Node::ArrayLiteral* array_literal, bool )
+size_t VMCodeGen::GenExpressionTerm( Node::ArrayLiteral* array_literal, bool )
 {
   size_t stack_index = SYMBOL_TO_STACK(array_literal);
   Object* array_object = StackObject(stack_index);
-  *array_object = Object::GetArray();
+  *array_object = Object::BuildArray();
   switch( array_literal->array_type->type )
   {
     case ValueType::FLOAT:
@@ -346,7 +346,7 @@ size_t ByteCodeGen::GenExpressionTerm( Node::ArrayLiteral* array_literal, bool )
       {
         // TODO: currently, only literals supported as elements in array literals
         assert(element->GetAsLiteral());
-        array_object->array_ref->push_back(Object::GetFloat(element->GetAsFloatLiteral()->value));
+        array_object->array_ref->push_back(Object::BuildFloat(element->GetAsFloatLiteral()->value));
       }
       break;
     }
@@ -355,7 +355,7 @@ size_t ByteCodeGen::GenExpressionTerm( Node::ArrayLiteral* array_literal, bool )
       for( auto &element : array_literal->elements )
       {
         assert(element->GetAsLiteral());
-        array_object->array_ref->push_back(Object::GetInt(element->GetAsIntLiteral()->value));
+        array_object->array_ref->push_back(Object::BuildInt(element->GetAsIntLiteral()->value));
       }
       break;
     }
@@ -364,7 +364,7 @@ size_t ByteCodeGen::GenExpressionTerm( Node::ArrayLiteral* array_literal, bool )
       for( auto &element : array_literal->elements )
       {
         assert(element->GetAsLiteral());
-        array_object->array_ref->push_back(Object::GetBool(element->GetAsBoolLiteral()->value));
+        array_object->array_ref->push_back(Object::BuildBool(element->GetAsBoolLiteral()->value));
       }
       break;
     }
@@ -373,7 +373,7 @@ size_t ByteCodeGen::GenExpressionTerm( Node::ArrayLiteral* array_literal, bool )
       for( auto &element : array_literal->elements )
       {
         assert(element->GetAsLiteral());
-        array_object->array_ref->push_back(Object::GetString(element->GetAsStringLiteral()->value));
+        array_object->array_ref->push_back(Object::BuildString(element->GetAsStringLiteral()->value));
       }
       break;
     }
@@ -382,7 +382,7 @@ size_t ByteCodeGen::GenExpressionTerm( Node::ArrayLiteral* array_literal, bool )
       for( auto &element : array_literal->elements )
       {
         assert(element->GetAsLiteral());
-        array_object->array_ref->push_back(Object::GetType(element->GetAsTypeLiteral()->type));
+        array_object->array_ref->push_back(Object::BuildType(element->GetAsTypeLiteral()->type));
       }
       break;
     }
@@ -396,11 +396,11 @@ size_t ByteCodeGen::GenExpressionTerm( Node::ArrayLiteral* array_literal, bool )
   return stack_index;
 }
 
-size_t ByteCodeGen::GenExpressionTerm( Node::DictLiteral* dict_literal, bool )
+size_t VMCodeGen::GenExpressionTerm( Node::DictLiteral* dict_literal, bool )
 {
   size_t stack_index = SYMBOL_TO_STACK(dict_literal);
   Object* dict_object = StackObject(stack_index);
-  *dict_object = Object::GetDict();
+  *dict_object = Object::BuildDict();
   for( size_t i = 0; i < dict_literal->keys.size(); ++i)
   {
     auto float_literal = dict_literal->values[i]->GetAsFloatLiteral();
@@ -410,19 +410,19 @@ size_t ByteCodeGen::GenExpressionTerm( Node::DictLiteral* dict_literal, bool )
 
     if(float_literal)
     {
-      (*dict_object->dict_ref)[*dict_literal->keys[i]->GetAsStringLiteral()->value] = Object::GetFloat(float_literal->value);
+      (*dict_object->dict_ref)[*dict_literal->keys[i]->GetAsStringLiteral()->value] = Object::BuildFloat(float_literal->value);
     }
     else if(int_literal)
     {
-      (*dict_object->dict_ref)[*dict_literal->keys[i]->GetAsStringLiteral()->value] = Object::GetInt(int_literal->value);
+      (*dict_object->dict_ref)[*dict_literal->keys[i]->GetAsStringLiteral()->value] = Object::BuildInt(int_literal->value);
     }
     else if(string_literal)
     {
-      (*dict_object->dict_ref)[*dict_literal->keys[i]->GetAsStringLiteral()->value] = Object::GetString(string_literal->value);
+      (*dict_object->dict_ref)[*dict_literal->keys[i]->GetAsStringLiteral()->value] = Object::BuildString(string_literal->value);
     }
     else if(bool_literal)
     {
-      (*dict_object->dict_ref)[*dict_literal->keys[i]->GetAsStringLiteral()->value] = Object::GetBool(bool_literal->value);
+      (*dict_object->dict_ref)[*dict_literal->keys[i]->GetAsStringLiteral()->value] = Object::BuildBool(bool_literal->value);
     }
   }
 
@@ -430,30 +430,30 @@ size_t ByteCodeGen::GenExpressionTerm( Node::DictLiteral* dict_literal, bool )
 }
 
 // double dispatch support
-type_t ByteCodeGen::GetType( Node::Expression* node )
+type_t VMCodeGen::GetType( Node::Expression* node )
 {
   // dispatch call to concrete type
   GetTypeDispatcher dispatcher(this, node);
   return dispatcher.ReturnValue();
 }
 
-type_t ByteCodeGen::GetType( Node::Identifier* identifier )
+type_t VMCodeGen::GetType( Node::Identifier* identifier )
 {
   return m_function_node->GetExpressionType( identifier );
 }
 
-type_t ByteCodeGen::GetType( Node::ArrayDereference* array_deref_node )
+type_t VMCodeGen::GetType( Node::ArrayDereference* array_deref_node )
 {
   auto array_deref = array_deref_node->GetAsArrayDereference();
   return m_function_node->GetExpressionType( array_deref->ident->GetAsIdentifier() );
 }
 
-type_t ByteCodeGen::GetType( Node::Literal* literal )
+type_t VMCodeGen::GetType( Node::Literal* literal )
 {
   return literal->GetValueType();
 }
 
-type_t ByteCodeGen::GetType( Node::BinaryOp* binary_op )
+type_t VMCodeGen::GetType( Node::BinaryOp* binary_op )
 {
   switch( binary_op->op )
   {
@@ -488,7 +488,7 @@ type_t ByteCodeGen::GetType( Node::BinaryOp* binary_op )
   return TypeBuilder::GetNilType();
 }
 
-type_t ByteCodeGen::GetType( Node::FunctionCall* function_call )
+type_t VMCodeGen::GetType( Node::FunctionCall* function_call )
 {
   Function* function = GetFunction( function_call, function_call->GetSpecialization(m_function_node->current_specialization) );
   if( function )
@@ -498,7 +498,7 @@ type_t ByteCodeGen::GetType( Node::FunctionCall* function_call )
   return function_call->GetReturnType(m_function_node->current_specialization);
 }
 
-type_t ByteCodeGen::GetType( Node::ProcessMessage* process_message )
+type_t VMCodeGen::GetType( Node::ProcessMessage* process_message )
 {
   auto function_call = process_message->message->GetAsFunctionCall();
   Function* function = GetFunction( function_call, function_call->GetSpecialization(m_function_node->current_specialization) );
@@ -509,7 +509,7 @@ type_t ByteCodeGen::GetType( Node::ProcessMessage* process_message )
   return function_call->GetReturnType(m_function_node->current_specialization);
 }
 
-size_t ByteCodeGen::GenForInit( Node::ForInit* node )
+size_t VMCodeGen::GenForInit( Node::ForInit* node )
 {
   size_t counter = SYMBOL_TO_STACK(node->counter->GetAsIdentifier());
   size_t start = GenExpressionTerm( node->start.get(), false );
@@ -541,11 +541,11 @@ size_t ByteCodeGen::GenForInit( Node::ForInit* node )
 
 #define OPCODE_CASE(op)     case op: \
                             { \
-                              m_function->code.push_back(ByteCode(op)); \
+                              m_function->code.push_back(VMCode(op)); \
                               break; \
                             }
 
-size_t ByteCodeGen::PushOpcode( Opcode opcode )
+size_t VMCodeGen::PushOpcode( Opcode opcode )
 {
   switch(opcode)
   {
@@ -626,17 +626,17 @@ size_t ByteCodeGen::PushOpcode( Opcode opcode )
   return m_function->code.size() - 1;
 }
 
-size_t ByteCodeGen::PushCCall( InstructionImpl cfunction )
+size_t VMCodeGen::PushCCall( InstructionImpl cfunction )
 {
   // TODO: bubble cfunction name up to here
-  m_function->code.push_back(ByteCode(cfunction));
+  m_function->code.push_back(VMCode(cfunction));
   m_current_operand = 0;
   ++m_opcode_count;
   return m_function->code.size() - 1;
 }
 
 // allow_new_op will allow creation of empty ops to carry arguments that won't fit into a single instruction
-void ByteCodeGen::PushOperand( size_t operand, bool allow_new_op )
+void VMCodeGen::PushOperand( size_t operand, bool allow_new_op )
 {
   size_t last_op = m_function->code.size() - 1;
 
@@ -678,7 +678,7 @@ void ByteCodeGen::PushOperand( size_t operand, bool allow_new_op )
   ++m_current_operand;
 }
 
-Object* ByteCodeGen::StackObject( size_t index )
+Object* VMCodeGen::StackObject( size_t index )
 {
   // convert index into local stack offset
   index -= m_base_stack_offset;
@@ -690,7 +690,7 @@ Object* ByteCodeGen::StackObject( size_t index )
   return &m_function->constants[offset];
 }
 
-void ByteCodeGen::GenFunctionCall( Node::FunctionCall* node )
+void VMCodeGen::GenFunctionCall( Node::FunctionCall* node )
 {
   // evaluate args
   size_t arg_count = node->arguments.size();
@@ -761,7 +761,7 @@ void ByteCodeGen::GenFunctionCall( Node::FunctionCall* node )
   }
 }
 
-void ByteCodeGen::GenProcessMessage( Node::ProcessMessage* call_node )
+void VMCodeGen::GenProcessMessage( Node::ProcessMessage* call_node )
 {
   auto node = call_node->message->GetAsFunctionCall();
 
@@ -816,7 +816,7 @@ void ByteCodeGen::GenProcessMessage( Node::ProcessMessage* call_node )
 }
 
 template <class T>
-Function* ByteCodeGen::GenWhen( T when_node, Opcode opcode )
+Function* VMCodeGen::GenWhen( T when_node, Opcode opcode )
 {
   Function* when_eval = new Function();
 
@@ -845,7 +845,7 @@ Function* ByteCodeGen::GenWhen( T when_node, Opcode opcode )
   m_function->is_when_eval        = true;
 
   // "when" statement runs within outer context, like methods
-  m_function->is_method           = true;
+  m_function->reuse_context           = true;
 
   m_first_temp = m_current_temp = m_function->temp_start;
 
@@ -882,13 +882,13 @@ Function* ByteCodeGen::GenWhen( T when_node, Opcode opcode )
 }
 
 // double dispatch support
-void ByteCodeGen::GenStatement( Node::Statement* statement )
+void VMCodeGen::GenStatement( Node::Statement* statement )
 {
   // dispatch call to concrete type
   GenStatementDispatcher dispatcher(this, statement);
 }
 
-void ByteCodeGen::GenStatements( std::vector<StatementNode> &nodes )
+void VMCodeGen::GenStatements( std::vector<StatementNode> &nodes )
 {
   for( auto &node : nodes )
   {
@@ -896,7 +896,7 @@ void ByteCodeGen::GenStatements( std::vector<StatementNode> &nodes )
   }
 }
 
-void ByteCodeGen::GenStatement( Node::Return* return_statement )
+void VMCodeGen::GenStatement( Node::Return* return_statement )
 {
   m_result_index = (size_t)-1;
   m_current_temp = m_first_temp;
@@ -913,7 +913,7 @@ void ByteCodeGen::GenStatement( Node::Return* return_statement )
   }
 }
 
-void ByteCodeGen::GenStatement( Node::Assignment* assignment )
+void VMCodeGen::GenStatement( Node::Assignment* assignment )
 {
   m_result_index = (size_t)-1;
   m_current_temp = m_first_temp;
@@ -951,7 +951,7 @@ void ByteCodeGen::GenStatement( Node::Assignment* assignment )
   }
 }
 
-void ByteCodeGen::GenStatement( Node::For* for_loop )
+void VMCodeGen::GenStatement( Node::For* for_loop )
 {
   m_result_index = (size_t)-1;
   m_current_temp = m_first_temp;
@@ -969,7 +969,7 @@ void ByteCodeGen::GenStatement( Node::For* for_loop )
   m_function->code[for_index].d = (u16)opcount;
 }
 
-void ByteCodeGen::GenStatement( Node::While* while_loop )
+void VMCodeGen::GenStatement( Node::While* while_loop )
 {
   m_result_index = (size_t)-1;
   m_current_temp = m_first_temp;
@@ -991,7 +991,7 @@ void ByteCodeGen::GenStatement( Node::While* while_loop )
   m_function->code[while_id].c = (Operand)body_opcount;
 }
 
-void ByteCodeGen::GenStatement( Node::When* when )
+void VMCodeGen::GenStatement( Node::When* when )
 {
   m_result_index = (size_t)-1;
   m_current_temp = m_first_temp;
@@ -1000,11 +1000,11 @@ void ByteCodeGen::GenStatement( Node::When* when )
   PushOpcode( Opcode::WhenRegister );
 
   size_t stack_index = SYMBOL_TO_STACK(when->ident.get());
-  *StackObject( stack_index ) = Object::GetFunction(when_eval);
+  *StackObject( stack_index ) = Object::BuildFunction(when_eval);
   PushOperand( stack_index );
 }
 
-void ByteCodeGen::GenStatement( Node::Whenever* whenever )
+void VMCodeGen::GenStatement( Node::Whenever* whenever )
 {
   m_result_index = (size_t)-1;
   m_current_temp = m_first_temp;
@@ -1013,11 +1013,11 @@ void ByteCodeGen::GenStatement( Node::Whenever* whenever )
   PushOpcode( Opcode::WheneverRegister );
 
   size_t stack_index = SYMBOL_TO_STACK(whenever->ident.get());
-  *StackObject( stack_index ) = Object::GetFunction(whenever_eval);
+  *StackObject( stack_index ) = Object::BuildFunction(whenever_eval);
   PushOperand( stack_index );
 }
 
-void ByteCodeGen::GenStatement( Node::If* if_statement )
+void VMCodeGen::GenStatement( Node::If* if_statement )
 {
   m_result_index = (size_t)-1;
   m_current_temp = m_first_temp;
@@ -1146,7 +1146,7 @@ void ByteCodeGen::GenStatement( Node::If* if_statement )
   }
 }
 
-void ByteCodeGen::GenStatement( Node::FunctionCall* function_call )
+void VMCodeGen::GenStatement( Node::FunctionCall* function_call )
 {
   m_result_index = (size_t)-1;
   m_current_temp = m_first_temp;
@@ -1156,7 +1156,7 @@ void ByteCodeGen::GenStatement( Node::FunctionCall* function_call )
   GenFunctionCall(function_call);
 }
 
-void ByteCodeGen::GenStatement( Node::ProcessMessage* process_message )
+void VMCodeGen::GenStatement( Node::ProcessMessage* process_message )
 {
   m_result_index = (size_t)-1;
   m_current_temp = m_first_temp;
@@ -1164,7 +1164,7 @@ void ByteCodeGen::GenStatement( Node::ProcessMessage* process_message )
   GenProcessMessage(process_message);
 }
 
-void ByteCodeGen::ImportCFunctions( ExecutableModule* executable_module, std::vector<std::vector<InstructionImpl>> &cfunctions )
+void VMCodeGen::ImportCFunctions( ExecutableModule* executable_module, std::vector<std::vector<InstructionImpl>> &cfunctions )
 {
   size_t function_count = 0;
   for( size_t i = 0; i < executable_module->module->functions.size(); ++i )
@@ -1183,7 +1183,7 @@ void ByteCodeGen::ImportCFunctions( ExecutableModule* executable_module, std::ve
   }
 }
 
-void ByteCodeGen::GenFunction( Node::Function* node )
+void VMCodeGen::GenFunction( Node::Function* node )
 {
   // skip function templates
   // TODO: do proper check for function templates
@@ -1201,7 +1201,7 @@ void ByteCodeGen::GenFunction( Node::Function* node )
   if( !m_function->code.size() || (m_function->code[m_function->code.size()-1].instruction != Instruction::Return
                              &&  m_function->code[m_function->code.size()-1].instruction != Instruction::ReturnValue))
   {
-    m_function->code.push_back(ByteCode(Opcode::Return));
+    m_function->code.push_back(VMCode(Opcode::Return));
   }
 
   #if DUMP_CODE == 1
@@ -1215,7 +1215,7 @@ void ByteCodeGen::GenFunction( Node::Function* node )
   #endif
 }
 
-void ByteCodeGen::InitFunction( Node::Function* node )
+void VMCodeGen::InitFunction( Node::Function* node )
 {
   // update symbol count in case we generated multiple specializations of a function call within the same function
   node->symbol_count = node->current_specialization ? node->specializations[node->current_specialization-1].symbol_count() :
@@ -1247,7 +1247,7 @@ void ByteCodeGen::InitFunction( Node::Function* node )
   m_function->return_type = m_function_node->GetValueType();
 }
 
-Function* ByteCodeGen::GetConstructor( Node::Function* node, size_t specialization )
+Function* VMCodeGen::GetConstructor( Node::Function* node, size_t specialization )
 {
   std::queue<ExecutableModule*> modules;
   modules.push(m_current_module);
@@ -1278,7 +1278,7 @@ Function* ByteCodeGen::GetConstructor( Node::Function* node, size_t specializati
   return nullptr;
 }
 
-Function* ByteCodeGen::GetFunction( Node::FunctionCall* node, size_t specialization )
+Function* VMCodeGen::GetFunction( Node::FunctionCall* node, size_t specialization )
 {
   std::queue<ExecutableModule*> modules;
   modules.push(m_current_module);
@@ -1365,7 +1365,7 @@ Function* ByteCodeGen::GetFunction( Node::FunctionCall* node, size_t specializat
   return nullptr;
 }
 
-Function* ByteCodeGen::GetMemberFunction( Node::ProcessMessage* call_node, size_t specialization )
+Function* VMCodeGen::GetMemberFunction( Node::ProcessMessage* call_node, size_t specialization )
 {
   auto node = call_node->message->GetAsFunctionCall();
   auto ident = call_node->process->GetAsIdentifier();
@@ -1406,7 +1406,7 @@ Function* ByteCodeGen::GetMemberFunction( Node::ProcessMessage* call_node, size_
   return nullptr;
 }
 
-InstructionImpl ByteCodeGen::GetCFunction( std::string name, size_t specialization )
+InstructionImpl VMCodeGen::GetCFunction( std::string name, size_t specialization )
 {
   std::queue<ExecutableModule*> modules;
   modules.push(m_current_module);
@@ -1438,7 +1438,7 @@ InstructionImpl ByteCodeGen::GetCFunction( std::string name, size_t specializati
   return nullptr;
 }
 
-void ByteCodeGen::GenModule( ExecutableModule* module )
+void VMCodeGen::GenModule( ExecutableModule* module )
 {
 #if LOG_DEBUG == 1
   Log::PopContext();
@@ -1508,7 +1508,7 @@ void ByteCodeGen::GenModule( ExecutableModule* module )
             continue;
           }
           InitFunction( member.get() );
-          m_function->is_method = true;
+          m_function->reuse_context = true;
         }
       }
     }

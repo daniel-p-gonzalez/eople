@@ -2,7 +2,7 @@
 #include "eople_ast.h"
 #include "eople_parse.h"
 #include "eople_type_infer.h"
-#include "eople_bytecode_gen.h"
+#include "eople_vmcode_gen.h"
 #include "eople_vm.h"
 #include "eople_cmodule_builder.h"
 
@@ -33,7 +33,7 @@ private:
   std::vector<ExecutableModulePtr> m_loaded_modules;
   ASTree         m_ast;
   TypeInfer      m_type_infer;
-  ByteCodeGen    m_code_gen;
+  VMCodeGen    m_code_gen;
   Parser         m_parser;
   process_t       m_main_process;
 };

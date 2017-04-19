@@ -1,6 +1,8 @@
 #pragma once
 #include "core.h"
 
+#include "eople_types.h"
+#include "eople_object.h"
 #include "eople_log.h"
 
 #include <new>
@@ -15,285 +17,7 @@
 namespace Eople
 {
 
-struct Object;
-struct Function;
-struct Process;
-struct Promise;
-
-typedef i64                  int_t;
-typedef f64                  float_t;
-typedef u32                  bool_t;
-typedef Process*             process_t;
-typedef Promise*             promise_t;
-typedef Function*            function_t;
-typedef std::string*         string_t;
-typedef std::vector<Object>* array_t;
-typedef std::unordered_map<std::string, Object>* dict_t;
-
-
-// order matters: eople_parse.cpp:ParseType and eople_static.cpp:BuildPrimitiveTypes
-enum class ValueType
-{
-  NIL = 0,
-  FLOAT,
-  INT,
-  BOOL,
-  STRING,
-  DICT,
-  STRUCT,
-  PROCESS,
-  FUNCTION,
-  PROMISE,
-  ARRAY,
-  TYPE,
-  ANY,
-};
-
-struct Type;
-struct StructType;
-struct ProcessType;
-struct FunctionType;
-struct PromiseType;
-struct ArrayType;
-struct DictType;
-struct KindType;
-struct AnyType;
-typedef Type* type_t;
-typedef std::unique_ptr<Type> TypePtr;
-
-struct TypeBuilder
-{
-  static type_t GetPrimitiveType( ValueType type )
-  {
-    assert((size_t)type <= (size_t)ValueType::DICT);
-
-    return primitive_types[(size_t)type].get();
-  }
-
-  static type_t GetNilType()
-  {
-    return GetPrimitiveType(ValueType::NIL);
-  }
-
-  static type_t GetBoolType()
-  {
-    return GetPrimitiveType(ValueType::BOOL);
-  }
-
-  static type_t GetIntType()
-  {
-    return GetPrimitiveType(ValueType::INT);
-  }
-
-  static type_t GetFloatType()
-  {
-    return GetPrimitiveType(ValueType::FLOAT);
-  }
-
-  static type_t GetDictType()
-  {
-    return GetPrimitiveType(ValueType::DICT);
-  }
-
-  static type_t GetProcessType( std::string class_name )
-  {
-    return GetType<ProcessType>(class_name, process_types);
-  }
-
-  static type_t GetFunctionType( std::string function_name )
-  {
-    return GetType<FunctionType>(function_name, function_types);
-  }
-
-  static type_t GetPromiseType( type_t inner_type )
-  {
-    return GetType<PromiseType>(inner_type, promise_types);
-  }
-
-  static type_t GetArrayType( type_t inner_type = GetPrimitiveType(ValueType::NIL) )
-  {
-    return GetType<ArrayType>(inner_type, array_types);
-  }
-
-  static type_t GetKindType( type_t inner_type = GetPrimitiveType(ValueType::NIL) )
-  {
-    return GetType<KindType>(inner_type, kind_types);
-  }
-
-  static type_t GetAnyType()
-  {
-    return any_type.get();
-  }
-
-  typedef std::vector<TypePtr>           PrimitiveTypeVector;
-  typedef std::map<std::string, TypePtr> ProcessTypeMap;
-  typedef std::map<std::string, TypePtr> FunctionTypeMap;
-  typedef std::map<type_t, TypePtr>      PromiseTypeMap;
-  typedef std::map<type_t, TypePtr>      ArrayTypeMap;
-  typedef std::map<type_t, TypePtr>      KindTypeMap;
-
-private:
-  template <class T, class KT, class MT>
-  static type_t GetType( KT key, MT &the_map )
-  {
-    auto it = the_map.find(key);
-    if( it != the_map.end() )
-    {
-      return it->second.get();
-    }
-    TypePtr new_type( new T(key) );
-    type_t result = new_type.get();
-    the_map[key] = std::move(new_type);
-    return result;
-  }
-
-  static PrimitiveTypeVector primitive_types;
-  static ProcessTypeMap       process_types;
-  static FunctionTypeMap     function_types;
-  static PromiseTypeMap      promise_types;
-  static ArrayTypeMap        array_types;
-  static KindTypeMap         kind_types;
-  static TypePtr             any_type;
-};
-
-struct Type
-{
-  Type( ValueType in_type ) : type(in_type) {}
-
-  virtual ~Type() {}
-
-  virtual bool IsIncompleteType()
-  {
-    return type == ValueType::NIL;
-  }
-
-  virtual type_t GetVaryingType()
-  {
-    if(type == ValueType::DICT)
-    {
-      return TypeBuilder::GetAnyType();
-    }
-    return TypeBuilder::GetNilType();
-  }
-
-  virtual void SetVaryingType( type_t )
-  {
-  }
-
-  ValueType type;
-};
-
-struct StructType : public Type
-{
-  StructType( std::string name ) : struct_name(name), Type(ValueType::STRUCT)
-  {
-  }
-
-  std::string struct_name;
-  std::vector<type_t> member_names;
-};
-
-struct ProcessType : public Type
-{
-  ProcessType( std::string name ) : class_name(name), Type(ValueType::PROCESS) {}
-  std::string class_name;
-};
-
-struct FunctionType : public Type
-{
-  FunctionType( std::string name ) : function_name(name), Type(ValueType::FUNCTION) {}
-  std::string         function_name;
-  std::vector<type_t> arg_types;
-  type_t              return_type;
-};
-
-struct PromiseType : public Type
-{
-  PromiseType( type_t inner_type ) : result_type(inner_type), Type(ValueType::PROMISE) {}
-  virtual bool IsIncompleteType()
-  {
-    return result_type->IsIncompleteType();
-  }
-
-  virtual type_t GetVaryingType()
-  {
-    return result_type;
-  }
-
-  virtual void SetVaryingType( type_t varying_type )
-  {
-    if(!result_type->IsIncompleteType() && result_type != varying_type)
-    {
-      throw "Type Mismatch";
-    }
-    result_type = varying_type;
-  }
-
-  type_t result_type;
-};
-
-struct ArrayType : public Type
-{
-  ArrayType( type_t inner_type ) : element_type(inner_type), Type(ValueType::ARRAY) {}
-  virtual bool IsIncompleteType()
-  {
-    return element_type->IsIncompleteType();
-  }
-
-  virtual type_t GetVaryingType()
-  {
-    return element_type;
-  }
-
-  virtual void SetVaryingType( type_t varying_type )
-  {
-    if(!element_type->IsIncompleteType() && element_type != varying_type)
-    {
-      throw "Type Mismatch";
-    }
-    element_type = varying_type;
-  }
-
-  type_t element_type;
-};
-
-// type whose value is a type.
-// eg. in x = <int>, the type of x is KindType, and KindType::kind_type->type == INT
-// slightly less confusing than TypeType... TypeType::type_type->type == type
-// typetypetypetypetypetypetypetype
-struct KindType : public Type
-{
-  KindType( type_t inner_type ) : kind_type(inner_type), Type(ValueType::TYPE) {}
-  virtual bool IsIncompleteType()
-  {
-    return kind_type->IsIncompleteType();
-  }
-
-  virtual type_t GetVaryingType()
-  {
-    return kind_type;
-  }
-
-  virtual void SetVaryingType( type_t varying_type )
-  {
-    if(!kind_type->IsIncompleteType() && kind_type != varying_type)
-    {
-      throw "Type Mismatch";
-    }
-    kind_type = varying_type;
-  }
-
-  type_t kind_type;
-};
-
-struct AnyType : public Type
-{
-  AnyType() : Type(ValueType::ANY) {}
-};
-
 typedef u16 Operand;
-
-//#define INSTR_CCONV _fastcall
 
 // opcodes must be 1 to 1 with Instruction::opcode
 // mapping defined in eople_vm.cpp::OpcodeToInstruction
@@ -369,215 +93,28 @@ typedef bool (*InstructionImpl) ( process_t process_ref );
 InstructionImpl OpcodeToInstruction( Opcode opcode );
 std::string InstructionToString( InstructionImpl instruction );
 
-struct ByteCode
+// represents a single virtual machine instruction with its operands
+struct VMCode
 {
-  ByteCode( Opcode in_func )
+  VMCode( Opcode in_func )
     : instruction(OpcodeToInstruction(in_func)), a(0), b(0), c(0), d(0)
   {
   }
 
-  ByteCode( InstructionImpl cfunction )
+  VMCode( InstructionImpl cfunction )
     : instruction(cfunction), a(0), b(0), c(0), d(0)
   {
   }
 
-  ByteCode() {}
+  VMCode() {}
 
+  // function pointer to instruction implementation
   InstructionImpl instruction;
-  // operands encoded in instruction
+  // operands are indices into the process stack
   Operand a;
   Operand b;
   Operand c;
   Operand d;
-};
-
-struct Object
-{
-  union
-  {
-    function_t    function;
-    process_t      process_ref;
-    promise_t     promise;
-    string_t      string_ref;
-    array_t       array_ref;
-    dict_t        dict_ref;
-    type_t        type;
-    float_t       float_val;
-    int_t         int_val;
-    i32           jump_offset;
-    bool_t        bool_val;
-  };
-  // TODO: this is a hack related to garbage collection and shouldn't be necessary.
-  u8 object_type;
-
-  Object() : object_type((u8)ValueType::NIL)
-  {
-  }
-
-  void SetInt( int_t val )
-  {
-    object_type = (u8)ValueType::INT;
-    int_val = val;
-  }
-
-  void SetFloat( float_t val )
-  {
-    object_type = (u8)ValueType::FLOAT;
-    float_val = val;
-  }
-
-  void SetBool( bool_t val )
-  {
-    object_type = (u8)ValueType::BOOL;
-    bool_val = val;
-  }
-
-  void SetString( string_t val )
-  {
-    object_type = (u8)ValueType::STRING;
-    string_ref = val;
-  }
-
-  void SetType( type_t val )
-  {
-    type = val;
-  }
-
-  void SetFunction( Function* in_function )
-  {
-    object_type = (u8)ValueType::FUNCTION;
-    function = in_function;
-  }
-
-  void SetProcess( process_t in_process )
-  {
-    object_type = (u8)ValueType::PROCESS;
-    process_ref = in_process;
-  }
-
-  void SetPromise( promise_t in_promise )
-  {
-    object_type = (u8)ValueType::PROMISE;
-    promise = in_promise;
-  }
-
-  void SetArray( array_t val )
-  {
-    object_type = (u8)ValueType::ARRAY;
-    array_ref = val;
-  }
-
-  static Object GetArray( array_t val )
-  {
-    Object array_object;
-    array_object.SetArray(val);
-
-    return array_object;
-  }
-
-  static Object GetArray()
-  {
-    Object array_object;
-    array_object.array_ref = new std::vector<Object>();
-    array_object.object_type = (u8)ValueType::ARRAY;
-
-    return array_object;
-  }
-
-  void SetDict( dict_t val )
-  {
-    object_type = (u8)ValueType::DICT;
-    dict_ref = val;
-  }
-
-  static Object GetDict( dict_t val )
-  {
-    Object dict_object;
-    dict_object.SetDict(val);
-
-    return dict_object;
-  }
-
-  static Object GetDict()
-  {
-    Object dict_object;
-    dict_object.dict_ref = new std::unordered_map<std::string, Object>();
-    dict_object.object_type = (u8)ValueType::DICT;
-
-    return dict_object;
-  }
-
-  static Object GetInt( int_t val )
-  {
-    Object int_object;
-    int_object.SetInt(val);
-
-    return int_object;
-  }
-
-  static Object GetFloat( float_t val )
-  {
-    Object float_object;
-    float_object.SetFloat(val);
-
-    return float_object;
-  }
-
-  static Object GetBool( bool_t val )
-  {
-    Object bool_object;
-    bool_object.SetBool(val);
-
-    return bool_object;
-  }
-
-  static Object GetString( string_t val )
-  {
-    Object string_object;
-    string_object.SetString(val);
-
-    return string_object;
-  }
-
-  static Object GetType( type_t val )
-  {
-    Object type_object;
-    type_object.SetType(val);
-
-    return type_object;
-  }
-
-  static Object GetOffset( i32 offset )
-  {
-    Object offset_object;
-    offset_object.jump_offset = offset;
-
-    return offset_object;
-  }
-
-  static Object GetFunction( Function* function )
-  {
-    Object function_object;
-    function_object.SetFunction( function );
-
-    return function_object;
-  }
-
-  static Object GetProcess( process_t process )
-  {
-    Object process_object;
-    process_object.SetProcess( process );
-
-    return process_object;
-  }
-
-  static Object GetPromise( promise_t promise )
-  {
-    Object promise_object;
-    promise_object.SetPromise( promise );
-
-    return promise_object;
-  }
 };
 
 struct Promise
@@ -593,7 +130,7 @@ struct Promise
 struct Function
 {
   Function()
-    : is_method(false), constants(nullptr), updated_function(nullptr),
+    : reuse_context(false), constants(nullptr), updated_function(nullptr),
       temp_end(0), return_type(TypeBuilder::GetNilType()), is_constructor(false), is_when_eval(false)
   {
   }
@@ -608,7 +145,7 @@ struct Function
     }
   }
 
-  std::vector<ByteCode> code;
+  std::vector<VMCode> code;
   // function to switch to when hot swapping
   std::atomic<Function*> updated_function;
   std::string          name;
@@ -629,7 +166,7 @@ struct Function
   u32 storage_requirement;
 
   type_t return_type;
-  bool   is_method;
+  bool   reuse_context;
   bool   is_constructor;
   bool   is_repl;
   // this function is the evaluation function of a when block
@@ -640,33 +177,71 @@ private:
 
 class VirtualMachine;
 
+struct ClosureState
+{
+  ClosureState() : state(nullptr), base_offset(0), object_count(0) {}
+
+  ClosureState(size_t offset, size_t count)
+  : object_count(count), base_offset(offset), state(new Object[count])
+  {
+  }
+
+  ClosureState(ClosureState&& other)
+  {
+    state = other.state;
+    object_count = other.object_count;
+    base_offset = other.base_offset;
+    other.state = nullptr;
+    other.object_count = 0;
+  }
+
+  ClosureState& operator=(ClosureState&& other)
+  {
+    if( this != &other )
+    {
+      if( state )
+      {
+        delete[] state;
+      }
+      state = other.state;
+      object_count = other.object_count;
+      base_offset = other.base_offset;
+      other.state = nullptr;
+      other.object_count = 0;
+
+      return *this;
+    }
+  }
+
+  ~ClosureState() { if(state) delete[] state; }
+
+  Object* state;
+  size_t base_offset;
+  size_t object_count;
+};
+
 struct WhenBlock
 {
-  WhenBlock( Function* in_eval )
-    : eval(in_eval), base_offset(0)
+  WhenBlock( Function* in_eval, ClosureState &&state )
+    : eval(in_eval), closure_state(std::move(state))
   {
   }
 
   // when block to evaluate
   Function* eval;
-  // state local to when block closure
-  // TODO: make proper use of SafeRange
-  SafeRange<Object> context;
-  // where the closure lives on the stack
-  size_t  base_offset;
+  ClosureState closure_state;
 };
 
-struct Process
+// Stack layout for a single process looks like:
+//  [[this][class_args][constants][locals][temporaries]]
+struct ProcessStack
 {
-  Process( u32 in_process, VirtualMachine* in_vm, Process* old_list_head )
-    : process_id(in_process), vm(in_vm), next(old_list_head), incremental_ip_offset(0), incremental_locals_offset(0),
-      incremental_constants_offset(0), stack(nullptr), stack_end(nullptr), stack_base(nullptr), stack_top(nullptr),
-      temporaries(nullptr), ip(nullptr)
+  ProcessStack() : stack(nullptr), stack_end(nullptr), stack_base(nullptr),
+                   stack_top(nullptr), temporaries(nullptr)
   {
-    lock.store(0);
   }
 
-  ~Process()
+  ~ProcessStack()
   {
     if( stack )
     {
@@ -675,51 +250,171 @@ struct Process
     }
   }
 
-  Object* OperandA()
+  struct StackFrame
   {
-    assert( (stack_base+ip->a) < stack_end );
-    return &stack_base[ip->a];
-  }
-
-  Object* OperandB()
-  {
-    assert( (stack_base+ip->b) < stack_end );
-    return &stack_base[ip->b];
-  }
-
-  Object* OperandC()
-  {
-    assert( (stack_base+ip->c) < stack_end );
-    return &stack_base[ip->c];
-  }
-
-  Object* OperandD()
-  {
-    assert( (stack_base+ip->d) < stack_end );
-    return &stack_base[ip->d];
-  }
-
-  bool IsTemporary( Object* object )
-  {
-    return object >= temporaries;
-  }
-
-  // Free memory from temp string (if it's actually a temp)
-  void TryCollectTempString( Object* temp )
-  {
-    if( temp >= temporaries )
+    StackFrame( size_t base, size_t top, size_t temp )
+      : bp(base), sp(top), tp(temp)
     {
-      delete temp->string_ref;
+    }
+
+    // must be offsets since the stack may be reallocated
+    size_t bp;
+    size_t sp;
+    size_t tp;
+  };
+
+  void PushStackFrame()
+  {
+    stack_frame.push_back(StackFrame(stack_base-stack, stack_top-stack, temporaries-stack));
+  }
+
+  void PopStackFrame()
+  {
+    if( !stack_frame.empty() )
+    {
+      StackFrame frame = stack_frame.back(); stack_frame.pop_back();
+      stack_base  = stack + frame.bp;
+      stack_top   = stack + frame.sp;
+      temporaries = stack + frame.tp;
     }
   }
 
-  // If destination is a temporary, this makes sure it's initialized so that values left over
-  //     from other (non-string) temporaries are not misinterpreted as pointers.
-  void TryInitTempString( Object* temp )
+  void SetupStackFrame( const Function* function )
   {
-    if( temp >= temporaries )
+    // preserve caller's stack frame
+    PushStackFrame();
+
+    //
+    // Allocate stack space for new active function.
+    //
+    // increment stack base if this is not a method.
+    // this allow access to class member variables
+    //  (which start at base of process stack)
+    stack_base = function->reuse_context ? stack_base : stack_top;
+    // TODO: refactor use of temp_end and storage_requirement.
+    // "when" blocks reuse exact stack frame of outer function
+    //   e.g. its closure, which is restored + space for additional temporaries
+    stack_top = function->is_when_eval ? stack_base + function->temp_end : stack_top + function->storage_requirement;
+    temporaries = function->temp_start + (function->reuse_context ? stack : stack_base);
+
+    // if there's not enough room, grow the stack
+    //   + 1 so there is space for ccalls to store return values.
+    // TODO: refactor to remove need for special handling of ccalls
+    if( (stack_top+1) > stack_end )
     {
-      temp->string_ref = new std::string();
+      ReallocStack( stack_top - stack );
+    }
+  }
+
+  void InitializeLocals( const Function* function )
+  {
+    // TODO: only necessary because of how string/array memory management is currently implemented
+    assert( (stack_base + function->locals_start + function->locals_count()) <= stack_end );
+    memset( stack_base + function->locals_start, 0, function->locals_count() * sizeof(Object) );
+  }
+
+  void PushConstants( const Function* function )
+  {
+    assert( (stack_base + function->constants_start + function->constant_count()) <= stack_end );
+    memcpy( stack_base + function->constants_start, function->constants, function->constant_count() * sizeof(Object) );
+  }
+
+  void PushArgs( const Function* function, const Object* args )
+  {
+    assert( (stack + function->parameters_start + function->parameter_count()) <= stack_end );
+    memcpy( stack + function->parameters_start, args, sizeof(Object) * function->parameter_count() );
+  }
+
+  // TODO: this makes a lot of assumptions about safety
+  void PushArgs( const Function* function, const VMCode* caller_ip, Object* src )
+  {
+    Object* dest;
+    if( function->is_constructor )
+    {
+      dest = stack + 1;
+    }
+    else
+    {
+      dest = stack_base;
+    }
+
+    size_t parameter_count = function->parameter_count();
+    if( !parameter_count )
+    {
+      return;
+    }
+
+    if( !function->is_constructor )
+    {
+      *(dest++) = src[caller_ip->b];
+      --parameter_count;
+    }
+    if( parameter_count )
+    {
+      *(dest++) = src[caller_ip->c];
+      --parameter_count;
+    }
+    if( parameter_count )
+    {
+      *(dest++) = src[caller_ip->d];
+      --parameter_count;
+    }
+
+    while( parameter_count )
+    {
+      ++caller_ip;
+      if( parameter_count )
+      {
+        *(dest++) = src[caller_ip->a];
+        --parameter_count;
+      }
+      if( parameter_count )
+      {
+        *(dest++) = src[caller_ip->b];
+        --parameter_count;
+      }
+      if( parameter_count )
+      {
+        *(dest++) = src[caller_ip->c];
+        --parameter_count;
+      }
+      if( parameter_count )
+      {
+        *(dest++) = src[caller_ip->d];
+        --parameter_count;
+      }
+    }
+  }
+
+  ClosureState CaptureClosure( const Function* function )
+  {
+    size_t copy_count = function->locals_count() + function->parameter_count() + function->constant_count();
+    if( copy_count )
+    {
+      size_t base_offset = stack_base - stack;
+      ClosureState closure_state = ClosureState(base_offset, copy_count);
+      assert( (stack_base + function->parameters_start + copy_count) <= stack_end );
+      memcpy( closure_state.state, stack_base + function->parameters_start, copy_count * sizeof(Object) );
+      return closure_state;
+    }
+    else
+    {
+      return ClosureState();
+    }
+  }
+
+  void ApplyClosureState( const Function* function, const ClosureState &closure_state )
+  {
+    auto old_base = stack_base;
+    stack_base = stack + closure_state.base_offset;
+    stack_top += stack_base - old_base;
+    temporaries += stack_base - old_base;
+
+    if( closure_state.state )
+    {
+      // copy closure state to stack
+      assert( (stack_base + function->parameters_start + closure_state.object_count) <= stack_end );
+      memcpy( stack_base + function->parameters_start, closure_state.state, closure_state.object_count * sizeof(Object) );
     }
   }
 
@@ -751,61 +446,34 @@ struct Process
     memset( stack + old_size, 0, sizeof(Object) * (size - old_size) );
   }
 
-  struct StackFrame
+  Object* GetObjectAtOffset( u16 offset )
   {
-    StackFrame( size_t base, size_t top, size_t temp, const ByteCode* code )
-      : bp(base), sp(top), tp(temp), ip(code)
-    {
-    }
-
-    // must be offsets since the stack may be reallocated
-    size_t bp;
-    size_t sp;
-    size_t tp;
-    const ByteCode* ip;
-  };
-
-  void PushStackFrame()
-  {
-    stack_frame.push_back(StackFrame(stack_base-stack, stack_top-stack, temporaries-stack, ip));
+    assert( (stack_base+offset) < stack_end );
+    return &stack_base[offset];
   }
 
-  void PopStackFrame()
+  void PushObjectAtOffset( const Object &object, u16 offset )
   {
-    StackFrame frame = stack_frame.back(); stack_frame.pop_back();
-    stack_base  = stack + frame.bp;
-    stack_top   = stack + frame.sp;
-    temporaries = stack + frame.tp;
-    ip          = frame.ip;
+    assert( (stack_base+offset) < stack_end );
+    stack_base[offset] = object;
   }
 
-  void SetupStackFrame( const Function* function )
+  void ShiftSegment(size_t old_offset, size_t new_offset, size_t segment_size)
   {
-    // preserve caller's stack frame
-    PushStackFrame();
+    Object* old_segment = stack_base + old_offset;
+    Object* new_segment = stack_base + new_offset;
 
-    // allocate stack space for new active function
-    // increment stack base if this is not a method
-    stack_base = function->is_method ? stack_base : stack_top;
-    stack_top = function->is_when_eval ? stack_base + function->temp_end : stack_top + function->storage_requirement;
-    temporaries = function->temp_start + (function->is_method ? stack : stack_base);
+    assert( (new_segment + segment_size) <= stack_end );
+    memmove( new_segment, old_segment, sizeof(Object) * segment_size );
+  }
 
-    ip = function->code.data();
-
-    // if there's not enough room, grow the stack
-    //   + 1 so there is space for ccalls to store return values. TODO: need to clean this up
-    if( (stack_top+1) > stack_end )
-    {
-      ReallocStack( stack_top - stack );
-    }
+  bool IsTemporary( Object* object )
+  {
+    return object >= temporaries;
   }
 
   std::vector<StackFrame> stack_frame;
-  std::atomic<int> lock;
-  const int  process_id;
-  Process*    next;
 
-  // TODO: clean this all up using SafeRange
   Object*    stack;
   Object*    stack_end;
 
@@ -818,9 +486,151 @@ struct Process
     Object*    ccall_return_val;
   };
   Object*    temporaries;
+};
+
+// Runtime instance for lightweight asynchronous process.
+// In Eople, class constructors build a Process, not an object.
+struct Process
+{
+  Process( u32 in_process, VirtualMachine* in_vm, Process* old_list_head )
+    : process_id(in_process), vm(in_vm), next(old_list_head), incremental_ip_offset(0), incremental_locals_offset(0),
+      incremental_constants_offset(0), ip(nullptr)
+  {
+    lock.store(0);
+  }
+
+  Object* OperandA()
+  {
+    return stack.GetObjectAtOffset(ip->a);
+  }
+
+  Object* OperandB()
+  {
+    return stack.GetObjectAtOffset(ip->b);
+  }
+
+  Object* OperandC()
+  {
+    return stack.GetObjectAtOffset(ip->c);
+  }
+
+  Object* OperandD()
+  {
+    return stack.GetObjectAtOffset(ip->d);
+  }
+
+  Object* CCallReturnVal()
+  {
+    return stack.ccall_return_val;
+  }
+
+  bool IsTemporary( Object* object )
+  {
+    return stack.IsTemporary( object );
+  }
+
+  // Free memory from temp string (if it's actually a temp)
+  void TryCollectTempString( Object* temp )
+  {
+    if( stack.IsTemporary(temp) )
+    {
+      delete temp->string_ref;
+    }
+  }
+
+  // If destination is a temporary, this makes sure it's initialized so that values left over
+  //     from other (non-string) temporaries are not misinterpreted as pointers.
+  void TryInitTempString( Object* temp )
+  {
+    if( stack.IsTemporary(temp) )
+    {
+      temp->string_ref = new std::string();
+    }
+  }
+
+  void PopStackFrame()
+  {
+    stack.PopStackFrame();
+    if( !callstack.empty() )
+    {
+      ip = callstack.back(); callstack.pop_back();
+    }
+  }
+
+  void SetupStackFrame( const Function* function )
+  {
+    stack.SetupStackFrame(function);
+    callstack.push_back(ip);
+    ip = function->code.data();
+  }
+
+  void InitializeLocalsOnStack( const Function* function )
+  {
+    stack.InitializeLocals( function );
+  }
+
+  void PushConstantsToStack( const Function* function )
+  {
+    stack.PushConstants(function);
+  }
+
+  void PushArgsToStack( const Function* function, const VMCode* caller_ip, Object* src )
+  {
+    stack.PushArgs(function, caller_ip, src);
+  }
+
+  void PushArgsToStack( const Function* function, const Object* args )
+  {
+    stack.PushArgs(function, args);
+  }
+
+  void PushThisPointer( const Object &process_object )
+  {
+    stack.PushObjectAtOffset( process_object, 0 );
+  }
+
+  bool IncrementalStackShift( const Function* function )
+  {
+    size_t old_constants_count = incremental_constants_offset;
+    size_t old_locals_count = incremental_locals_offset;
+
+    size_t constants_copy_count = function->constant_count() - old_constants_count;
+    size_t old_offset = function->constants_start + old_constants_count;
+    size_t new_offset = function->locals_start;
+    if( new_offset != old_offset )
+    {
+      // move locals to new location
+      stack.ShiftSegment(old_offset, new_offset, old_locals_count);
+
+      if( function->locals_count() > old_locals_count )
+      {
+        size_t locals_init_count = function->locals_count() - old_locals_count;
+        // clear memory to simplify garbage collection
+        assert( stack.stack_base + function->locals_start + old_locals_count + locals_init_count <= stack.stack_end );
+        memset( stack.stack_base + function->locals_start + old_locals_count, 0, locals_init_count * sizeof(Object) );
+      }
+
+      if( constants_copy_count )
+      {
+        Object* new_constants = stack.stack_base + old_offset;
+        assert( (stack.stack_base + function->constants_start + function->constant_count()) <= stack.stack_end );
+        memcpy( new_constants, function->constants + old_constants_count, constants_copy_count * sizeof(Object) );
+      }
+
+      return true;
+    }
+
+    return false;
+  }
+
+  ProcessStack stack;
+  std::vector<const VMCode*> callstack;
+  std::atomic<int> lock;
+  const int  process_id;
+  Process*    next;
 
   // instruction pointer
-  const ByteCode* ip;
+  const VMCode* ip;
   // when running incremental execution (repl), this is the last instruction executed
   size_t incremental_ip_offset;
   // when running incremental execution (repl), this is the last constant/local initialized

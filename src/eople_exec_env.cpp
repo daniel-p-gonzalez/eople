@@ -6,7 +6,7 @@
 #include "eople_lex.h"
 #include "eople_parse.h"
 #include "eople_type_infer.h"
-#include "eople_bytecode_gen.h"
+#include "eople_vmcode_gen.h"
 #include "eople_vm.h"
 #include "utf8.h"
 
