@@ -1,55 +1,50 @@
 #define CATCH_CONFIG_MAIN  // This tells Catch to provide a main() - only do this in one cpp file
 #include "catch.hpp"
 
-unsigned int Factorial( unsigned int number ) {
-    return number <= 1 ? number : Factorial(number-1)*number;
+#include "eople_symbol_table.h"
+
+SCENARIO( "symbol table allows constants to be pushed", "[symbol_table]" ) {
+
+    GIVEN( "An empty symbol table" ) {
+        Eople::SymbolTable symbols;
+
+        REQUIRE( symbols.symbol_count() == 0 );
+        REQUIRE( symbols.constant_count() == 0 );
+
+        WHEN( "a constant is pushed" ) {
+            size_t idx = symbols.GetTableEntryIndex( "const1", true );
+
+            THEN( "constant count changes, but not locals" ) {
+                REQUIRE( symbols.constant_count() == 1 );
+                REQUIRE( symbols.symbol_count() - symbols.constant_count() == 0 );
+            }
+        }
+        WHEN( "a non-constant symbol is pushed" ) {
+            size_t idx = symbols.GetTableEntryIndex( "non-const1", false );
+
+            THEN( "symbol count changes, but not constant count" ) {
+                REQUIRE( symbols.symbol_count() == 1 );
+                REQUIRE( symbols.constant_count() == 0 );
+            }
+        }
+    }
 }
 
-TEST_CASE( "Factorials are computed", "[factorial]" ) {
-    REQUIRE( Factorial(1) == 1 );
-    REQUIRE( Factorial(2) == 2 );
-    REQUIRE( Factorial(3) == 6 );
-    REQUIRE( Factorial(10) == 3628800 );
-}
+SCENARIO( "symbol table does not combine locals and string literals with same text", "[symbol_table]" ) {
 
-SCENARIO( "vectors can be sized and resized", "[vector]" ) {
+    GIVEN( "A symbol table with a local named 'x'" ) {
+        Eople::SymbolTable symbols;
 
-    GIVEN( "A vector with some items" ) {
-        std::vector<int> v( 5 );
+        size_t idx = symbols.GetTableEntryIndex( "x", false );
+        REQUIRE( symbols.symbol_count() == 1 );
+        REQUIRE( symbols.constant_count() == 0 );
 
-        REQUIRE( v.size() == 5 );
-        REQUIRE( v.capacity() >= 5 );
+        WHEN( "a literal string with the same text is pushed" ) {
+            size_t idx = symbols.GetTableEntryIndex( "x", true );
 
-        WHEN( "the size is increased" ) {
-            v.resize( 10 );
-
-            THEN( "the size and capacity change" ) {
-                REQUIRE( v.size() == 10 );
-                REQUIRE( v.capacity() >= 10 );
-            }
-        }
-        WHEN( "the size is reduced" ) {
-            v.resize( 0 );
-
-            THEN( "the size changes but not capacity" ) {
-                REQUIRE( v.size() == 0 );
-                REQUIRE( v.capacity() >= 5 );
-            }
-        }
-        WHEN( "more capacity is reserved" ) {
-            v.reserve( 10 );
-
-            THEN( "the capacity changes but not the size" ) {
-                REQUIRE( v.size() == 5 );
-                REQUIRE( v.capacity() >= 10 );
-            }
-        }
-        WHEN( "less capacity is reserved" ) {
-            v.reserve( 0 );
-
-            THEN( "neither size nor capacity are changed" ) {
-                REQUIRE( v.size() == 5 );
-                REQUIRE( v.capacity() >= 5 );
+            THEN( "constant count increases, and total symbol count increases" ) {
+                REQUIRE( symbols.constant_count() == 1 );
+                REQUIRE( symbols.symbol_count() == 2 );
             }
         }
     }
