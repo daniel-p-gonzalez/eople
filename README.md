@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/FBMachine/eople.svg?branch=topic_symboltable)](https://travis-ci.org/FBMachine/eople)
+[![Build Status](https://travis-ci.org/FBMachine/eople.svg?branch=master)](https://travis-ci.org/FBMachine/eople)
 # Eople
 
 ## Introduction
