@@ -25,6 +25,7 @@ bool BOr( process_t process_ref );
 
 bool ConcatS( process_t process_ref );
 bool EqualS( process_t process_ref );
+bool NotEqualS( process_t process_ref );
 
 bool GreaterThanI( process_t process_ref );
 bool LessThanI( process_t process_ref );

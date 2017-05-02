@@ -1,7 +1,8 @@
+cmake_minimum_required(VERSION 2.8.8)
+
 file(GLOB eople_SOURCES *.cpp)
-set(test_SOURCES ${eople_SOURCES})
 list(REMOVE_ITEM eople_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/eople_tests.cpp)
-list(REMOVE_ITEM test_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/eople_eve.cpp)
+list(REMOVE_ITEM eople_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/eople_eve.cpp)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   if(CMAKE_SIZEOF_VOID_P EQUAL 8)
@@ -19,11 +20,13 @@ else()
   message(SEND_ERROR "Missing cURL dependency.")
 endif(CURL_FOUND)
 
-add_executable(eople ${eople_SOURCES})
+add_library(eople_objs OBJECT ${eople_SOURCES})
+
+add_executable(eople ${CMAKE_CURRENT_SOURCE_DIR}/eople_eve.cpp $<TARGET_OBJECTS:eople_objs>)
 include_directories(${CURL_INCLUDE_DIRS})
 target_link_libraries(eople -lreadline ${CURL_LIBRARIES})
 
-add_executable(tests ${test_SOURCES})
+add_executable(tests ${CMAKE_CURRENT_SOURCE_DIR}/eople_tests.cpp $<TARGET_OBJECTS:eople_objs>)
 target_link_libraries(tests -lreadline ${CURL_LIBRARIES})
 
 install(TARGETS eople DESTINATION /usr/local/bin)

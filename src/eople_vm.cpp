@@ -39,6 +39,7 @@ std::string InstructionToString( InstructionImpl instruction )
   INSTRUCTION_TO_STRING(BOr)
   INSTRUCTION_TO_STRING(ConcatS)
   INSTRUCTION_TO_STRING(EqualS)
+  INSTRUCTION_TO_STRING(NotEqualS)
   INSTRUCTION_TO_STRING(ForI)
   INSTRUCTION_TO_STRING(ForF)
   INSTRUCTION_TO_STRING(ForA)
@@ -53,7 +54,7 @@ std::string InstructionToString( InstructionImpl instruction )
   INSTRUCTION_TO_STRING(PrintSPromise)
   INSTRUCTION_TO_STRING(PrintDict)
   INSTRUCTION_TO_STRING(FunctionCall)
-  INSTRUCTION_TO_STRING(ArrayDeref)
+  INSTRUCTION_TO_STRING(ArraySubscript)
   INSTRUCTION_TO_STRING(ProcessMessage)
   INSTRUCTION_TO_STRING(GreaterThanI)
   INSTRUCTION_TO_STRING(LessThanI)
@@ -110,6 +111,7 @@ InstructionImpl OpcodeToInstruction( Opcode opcode )
     OPCODE_TO_INSTRUCTION(BOr);
     OPCODE_TO_INSTRUCTION(ConcatS);
     OPCODE_TO_INSTRUCTION(EqualS);
+    OPCODE_TO_INSTRUCTION(NotEqualS);
     OPCODE_TO_INSTRUCTION(ForI);
     OPCODE_TO_INSTRUCTION(ForF);
     OPCODE_TO_INSTRUCTION(ForA);
@@ -124,7 +126,7 @@ InstructionImpl OpcodeToInstruction( Opcode opcode )
     OPCODE_TO_INSTRUCTION(PrintSPromise);
     OPCODE_TO_INSTRUCTION(PrintDict);
     OPCODE_TO_INSTRUCTION(FunctionCall);
-    OPCODE_TO_INSTRUCTION(ArrayDeref);
+    OPCODE_TO_INSTRUCTION(ArraySubscript);
     OPCODE_TO_INSTRUCTION(ProcessMessage);
     OPCODE_TO_INSTRUCTION(GreaterThanI);
     OPCODE_TO_INSTRUCTION(LessThanI);

@@ -128,7 +128,7 @@ bool PrintDict( process_t process_ref )
     {
       std::cout << ", ";
     }
-    std::cout << "\'" << it.first << "\':";
+    std::cout << it.first << ":";
     if( it.second.object_type == (u8)ValueType::STRING )
     {
       std::cout << "\"" << *it.second.string_ref << "\"";
@@ -178,7 +178,7 @@ bool GetLine( process_t process_ref )
   string_t &new_string = process_ref->CCallReturnVal()->string_ref;
   new_string = new std::string();
 
-  std::cin >> *new_string;
+  std::getline(std::cin, *new_string);
 
   return true;
 }
@@ -272,7 +272,7 @@ bool ArrayClear( process_t process_ref )
   return true;
 }
 
-bool ArrayDeref( process_t process_ref )
+bool ArraySubscript( process_t process_ref )
 {
   auto object = process_ref->OperandA();
   if(object->object_type == (u8)ValueType::ARRAY)

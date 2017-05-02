@@ -536,7 +536,7 @@ ExpressionNode Parser::ParseValidIdentifier( std::string ident )
   return ident_node;
 }
 
-ExpressionNode Parser::ParseArrayDereference( std::string ident )
+ExpressionNode Parser::ParseArraySubscript( std::string ident )
 {
   if( !ConsumeExpected('[') )
   {
@@ -561,13 +561,13 @@ ExpressionNode Parser::ParseArrayDereference( std::string ident )
     return nullptr;
   }
 
-  auto array_deref_node = NodeBuilder::GetArrayDereferenceNode(std::move(ident_node), m_last_line);
-  auto array_deref = array_deref_node->GetAsArrayDereference();
+  auto array_subscript_node = NodeBuilder::GetArraySubscriptNode(std::move(ident_node), m_last_line);
+  auto array_subscript = array_subscript_node->GetAsArraySubscript();
 
   bool neg = ConsumeExpected('-');
-  array_deref->index = ParseExpression();
+  array_subscript->index = ParseExpression();
 
-  if( !array_deref->index )
+  if( !array_subscript->index )
   {
     BumpError();
     Log::Error("(%d): Parse Error: Array dereference missing index.\n", m_last_error_line );
@@ -579,7 +579,108 @@ ExpressionNode Parser::ParseArrayDereference( std::string ident )
     Log::Error("(%d): Parse Error: Array dereference missing closing ']'.\n", m_last_error_line );
   }
 
-  return array_deref_node;
+  return array_subscript_node;
+}
+
+// Used by both expression and statement flavors
+ExpressionNode Parser::ParseBaseFunctionCall( ExpressionNode ident_node, bool need_terminator )
+{
+  bool struct_call = false;
+  ExpressionNode first_arg = nullptr;
+
+  if( !ConsumeExpected('(') )
+  {
+    if( !ConsumeExpected(TOK_STRUCT_CALL) )
+    {
+      return nullptr;
+    }
+    struct_call = true;
+    // ident_node is first parameter of call
+    first_arg = std::move(ident_node);
+    ident_node = ParseIdentifier();
+    if( !ident_node )
+    {
+      BumpError();
+      Log::Error("(%d): Parse Error: Expected struct method name after '%s.'.\n", m_last_error_line, first_arg->GetAsIdentifier()->name.c_str());
+      return nullptr;
+    }
+    if( !ConsumeExpected('(') )
+    {
+      // must be dict member access
+      // this would be cleaner with backtracking,
+      //  but let's just return an array access node here
+      auto array_subscript_node = NodeBuilder::GetArraySubscriptNode(std::move(first_arg), m_last_line);
+      auto array_subscript = array_subscript_node->GetAsArraySubscript();
+
+      static char key_count = 0;
+      std::string key_literal_label = "$subscriptkey";
+      key_literal_label += std::to_string(key_count++);
+
+      size_t string_symbol_id = m_function->symbols.GetTableEntryIndex(key_literal_label, true);
+      string_t new_string;
+      new_string = new std::string();
+      *new_string = ident_node->GetAsIdentifier()->name;
+      auto key = NodeBuilder::GetStringNode(new_string, string_symbol_id, key_literal_label, m_last_line);
+
+      array_subscript->index = std::move(key);
+      return array_subscript_node;
+    }
+  }
+
+  ++m_temp_count;
+
+  ExpressionNode function_call_node = NodeBuilder::GetFunctionCallNode( std::move(ident_node), m_last_line );
+  auto function_call = function_call_node->GetAsFunctionCall();
+
+  // capture the enclosing namespace
+  function_call->namespace_stack = m_namespace_stack;
+
+  // if this is using method-style syntactic sugar, add object as first parameter
+  if( first_arg )
+  {
+    function_call->arguments.push_back( std::move(first_arg) );
+  }
+
+  // allow newline between '(' and the function arguments
+  ConsumeNewlines();
+  auto arg = ParseExpression();
+  while( arg )
+  {
+    function_call->arguments.push_back( std::move(arg) );
+
+    // consume leading newlines between args
+    ConsumeNewlines();
+
+    arg = ConsumeExpected(',') ? ParseExpression() : 0;
+  }
+  // allow newline between the function arguments and ')'
+  ConsumeNewlines();
+
+  if( !ConsumeExpected(')') )
+  {
+    BumpError();
+    Log::Error("(%d): Parse Error: Function call missing closing %c.\n", m_last_error_line, ')');
+    return nullptr;
+  }
+
+  if( need_terminator && m_current_token != TOK_NEWLINE && m_current_token != TOK_EOF && m_current_token != ';' )
+  {
+    BumpError();
+    Log::Error("(%d): Parse Error: Expected a statement separater, got '%s' instead.\n", m_last_error_line, m_lex->TokenToString().c_str());
+    return nullptr;
+  }
+
+  if( need_terminator )
+  {
+    ConsumeToken();
+  }
+
+  if( need_terminator )
+  {
+    m_temp_max = m_temp_count > m_temp_max ? m_temp_count : m_temp_max;
+    m_temp_count = 0;
+  }
+  return function_call_node;
 }
 
 ExpressionNode Parser::ParseFunctionCallExpression( std::string ident )
@@ -593,7 +694,7 @@ ExpressionNode Parser::ParseFunctionCallExpression( std::string ident )
   auto ident_node = struct_call ? ParseValidIdentifier(ident) :
                                   NodeBuilder::GetIdentifierNode(ident, m_function->symbols.GetTableEntryIndex(ident, false), m_last_line);
 
-  ExpressionNode func_node = ParseFunctionCall( std::move(ident_node), false );
+  ExpressionNode func_node = ParseBaseFunctionCall( std::move(ident_node), false );
   if( func_node )
   {
     return func_node;
@@ -650,10 +751,9 @@ ExpressionNode Parser::ParseArrayLiteral()
     return nullptr;
   }
 
-  // TODO: unsuck this
   static char count = 0;
-  std::string array_literal_label = "array literal ";
-  array_literal_label += '0' + count++;
+  std::string array_literal_label = "$arrayliteral";
+  array_literal_label += std::to_string(count++);
   size_t symbol_id = m_function->symbols.GetTableEntryIndex(array_literal_label, true);
 
   auto array_node = NodeBuilder::GetArrayNode(NodeBuilder::GetIdentifierNode( array_literal_label, symbol_id, m_last_line ), m_last_line);
@@ -696,14 +796,30 @@ ExpressionNode Parser::ParseDictLiteral()
   }
 
   static char count = 0;
-  std::string dict_literal_label = "dict literal ";
-  dict_literal_label += '0' + count++;
+  std::string dict_literal_label = "$dictliteral";
+  dict_literal_label += std::to_string(count++);
   size_t symbol_id = m_function->symbols.GetTableEntryIndex(dict_literal_label, true);
 
   auto dict_node = NodeBuilder::GetDictNode(NodeBuilder::GetIdentifierNode( dict_literal_label, symbol_id, m_last_line ), m_last_line);
   auto dict = dict_node->GetAsDictLiteral();
 
-  auto key = ParseString();
+  std::string text = m_lex->GetString();
+  if( !ConsumeExpected(TOK_IDENTIFIER) )
+  {
+    return 0;
+  }
+
+  static char key_count = 0;
+  std::string key_literal_label = "$key";
+  key_literal_label += std::to_string(key_count++);
+
+  size_t string_symbol_id = m_function->symbols.GetTableEntryIndex(key_literal_label, true);
+  string_t new_string;
+  new_string = new std::string();
+  *new_string = text;
+  auto key = NodeBuilder::GetStringNode(new_string, string_symbol_id, key_literal_label, m_last_line);
+
+  // auto key = ParseString();
   while( key )
   {
     if( !ConsumeExpected(':') )
@@ -728,7 +844,21 @@ ExpressionNode Parser::ParseDictLiteral()
 
     if( another )
     {
-      key = ParseString();
+      std::string text = m_lex->GetString();
+      if( !ConsumeExpected(TOK_IDENTIFIER) )
+      {
+        return 0;
+      }
+
+      std::string key_literal_label = "$key";
+      key_literal_label += std::to_string(key_count++);
+
+      size_t string_symbol_id = m_function->symbols.GetTableEntryIndex(key_literal_label, true);
+      string_t new_string;
+      new_string = new std::string();
+      *new_string = text;
+      key = NodeBuilder::GetStringNode(new_string, string_symbol_id, key_literal_label, m_last_line);
+      // key = ParseString();
     }
     else
     {
@@ -783,8 +913,12 @@ ExpressionNode Parser::ParseInt(bool neg)
   char buffer[16];
   snprintf(buffer, sizeof(buffer), "%d", (u32)number);
 
-  size_t symbol_id = m_function->symbols.GetTableEntryIndex(buffer, true);
-  return NodeBuilder::GetIntNode(number, symbol_id, buffer, m_last_line);
+  static char count = 0;
+  std::string int_literal_label = "$int";
+  int_literal_label += std::to_string(count++);
+
+  size_t symbol_id = m_function->symbols.GetTableEntryIndex(int_literal_label, true);
+  return NodeBuilder::GetIntNode(number, symbol_id, int_literal_label, m_last_line);
 }
 
 ExpressionNode Parser::ParseString()
@@ -795,11 +929,15 @@ ExpressionNode Parser::ParseString()
     return 0;
   }
 
-  size_t symbol_id = m_function->symbols.GetTableEntryIndex(text, true);
+  static char count = 0;
+  std::string string_literal_label = "$string";
+  string_literal_label += std::to_string(count++);
+
+  size_t symbol_id = m_function->symbols.GetTableEntryIndex(string_literal_label, true);
   string_t new_string;
   new_string = new std::string();
   *new_string = text;
-  return NodeBuilder::GetStringNode(new_string, symbol_id, text, m_last_line);
+  return NodeBuilder::GetStringNode(new_string, symbol_id, string_literal_label, m_last_line);
 }
 
 ExpressionNode Parser::ParseBool()
@@ -866,7 +1004,7 @@ ExpressionNode Parser::ParseFactor()
       return expr_node;
     }
 
-    expr_node = ParseArrayDereference(ident);
+    expr_node = ParseArraySubscript(ident);
     if( expr_node )
     {
       return expr_node;
@@ -1354,9 +1492,8 @@ StatementNode Parser::ParseWhen()
   // need extra storage for 'when' eval function pointer
   ++m_temp_max;
 
-  // TODO: unsuck this
-  std::string when_label = m_function->name + "::when ";
-  when_label += '0' + (char)m_when_count++;
+  std::string when_label = "$" + m_function->name + "::when";
+  when_label += std::to_string(m_when_count++);
   m_function->symbols.ForceConstant(true);
   size_t symbol_id = m_function->symbols.GetTableEntryIndex(when_label, false);
   m_function->symbols.ForceConstant(false);
@@ -1405,9 +1542,8 @@ StatementNode Parser::ParseWhenever()
   // need extra storage for 'when' eval function pointer
   ++m_temp_max;
 
-  // TODO: unsuck this
-  std::string when_label = m_function->name + "::whenever ";
-  when_label += '0' + (char)m_whenever_count++;
+  std::string when_label = "$" + m_function->name + "::whenever";
+  when_label += std::to_string(m_whenever_count++);
   m_function->symbols.ForceConstant(true);
   size_t symbol_id = m_function->symbols.GetTableEntryIndex(when_label, false);
   m_function->symbols.ForceConstant(false);
@@ -1590,104 +1726,21 @@ StatementNode Parser::ParseProcessMessage( ExpressionNode process_node )
 
 StatementNode Parser::ParseFunctionCall( ExpressionNode ident_node, bool need_terminator )
 {
-  bool struct_call = false;
-  ExpressionNode first_arg = nullptr;
-
-  if( !ConsumeExpected('(') )
+  auto function_call_node = ParseBaseFunctionCall(std::move(ident_node), need_terminator);
+  if( !function_call_node )
   {
-    if( !ConsumeExpected(TOK_STRUCT_CALL) )
-    {
-      return nullptr;
-    }
-    struct_call = true;
-    // ident_node is first parameter of call
-    first_arg = std::move(ident_node);
-    ident_node = ParseIdentifier();
-    if( !ident_node )
-    {
-      BumpError();
-      Log::Error("(%d): Parse Error: Expected struct method name after '%s.'.\n", m_last_error_line, first_arg->GetAsIdentifier()->name.c_str());
-      return nullptr;
-    }
-    if( !ConsumeExpected('(') )
-    {
-      // must be a struct member variable dereference
-      return NodeBuilder::GetStructDereferenceNode( first_arg->GetAsIdentifier()->name, ident_node->GetAsIdentifier()->name, m_last_line );
-    }
+    return nullptr;
   }
 
-  ++m_temp_count;
-
-  // find symbol for function call, and move to constant register
-  {
-    auto &func_name = ident_node->GetAsIdentifier()->name;
-    auto function = m_function;
-    size_t symbol_id = m_function->symbols.GetTableEntryIndex(func_name, false, true);
-    Node::Function* parent = m_function->context;
-    // TODO: this is necessary because of how ParseIdentifier() recursively searches if symbol already exists.
-    //       symbol may be found if this is eg. a recursive function call in a nested function.
-    while( parent && symbol_id == m_function->symbols.NOT_FOUND )
-    {
-      function = parent;
-      symbol_id = parent->symbols.GetTableEntryIndex(func_name, false, true);
-      parent = parent->context;
-    }
-    assert( function != nullptr && symbol_id != m_function->symbols.NOT_FOUND );
-    function->symbols.ConvertToConstant(symbol_id);
-  }
-
-  auto function_call_node = NodeBuilder::GetFunctionCallNode( std::move(ident_node), m_last_line );
   auto function_call = function_call_node->GetAsFunctionCall();
-
-  // capture the enclosing namespace
-  function_call->namespace_stack = m_namespace_stack;
-
-  // if this is using method-style syntactic sugar, add object as first parameter
-  if( first_arg )
-  {
-    function_call->arguments.push_back( std::move(first_arg) );
-  }
-
-  // allow newline between '(' and the function arguments
-  ConsumeNewlines();
-  auto arg = ParseExpression();
-  while( arg )
-  {
-    function_call->arguments.push_back( std::move(arg) );
-
-    // consume leading newlines between args
-    ConsumeNewlines();
-
-    arg = ConsumeExpected(',') ? ParseExpression() : 0;
-  }
-  // allow newline between the function arguments and ')'
-  ConsumeNewlines();
-
-  if( !ConsumeExpected(')') )
+  if( !function_call )
   {
     BumpError();
-    Log::Error("(%d): Parse Error: Function call missing closing %c.\n", m_last_error_line, ')');
+    Log::Error("(%d): Parse Error: Malformed function call statement.\n", m_last_error_line);
     return nullptr;
   }
 
-  if( need_terminator && m_current_token != TOK_NEWLINE && m_current_token != TOK_EOF && m_current_token != ';' )
-  {
-    BumpError();
-    Log::Error("(%d): Parse Error: Expected a statement separater, got '%s' instead.\n", m_last_error_line, m_lex->TokenToString().c_str());
-    return nullptr;
-  }
-
-  if( need_terminator )
-  {
-    ConsumeToken();
-  }
-
-  if( need_terminator )
-  {
-    m_temp_max = m_temp_count > m_temp_max ? m_temp_count : m_temp_max;
-    m_temp_count = 0;
-  }
-  return function_call_node;
+  return StatementNode(function_call_node.release()->GetAsFunctionCall());
 }
 
 StatementNode Parser::ParseReturn()
@@ -1733,13 +1786,13 @@ StatementNode Parser::ParseStatement()
   auto ident_node = ParseIdentifier();
   if( ident_node )
   {
-    auto array_deref_node = ParseArrayDereference(ident_node->GetAsIdentifier()->name);
+    auto array_subscript_node = ParseArraySubscript(ident_node->GetAsIdentifier()->name);
     // is this an assignment?
     if( m_current_token == '=' || (m_current_token >= TOK_ADD_ASSIGN && m_current_token <= TOK_MOD_ASSIGN) )
     {
-      if( array_deref_node )
+      if( array_subscript_node )
       {
-        statement = ParseAssignment( std::move(array_deref_node) );
+        statement = ParseAssignment( std::move(array_subscript_node) );
       }
       else
       {
@@ -1750,7 +1803,7 @@ StatementNode Parser::ParseStatement()
         return statement;
       }
     }
-    else if( array_deref_node )
+    else if( array_subscript_node )
     {
       BumpError();
       if( m_current_token != TOK_NEWLINE )

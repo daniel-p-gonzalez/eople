@@ -331,15 +331,15 @@ namespace Node
     auto identifier    = expr->GetAsIdentifier();
     auto literal       = expr->GetAsLiteral();
     auto array_literal = expr->GetAsArrayLiteral();
-    auto array_deref = expr->GetAsArrayDereference();
+    auto array_subscript = expr->GetAsArraySubscript();
     auto dict_literal = expr->GetAsDictLiteral();
     auto function_call = expr->GetAsFunctionCall();
     auto process_call   = expr->GetAsProcessMessage();
 
-    if(identifier || literal || array_literal || array_deref || dict_literal)
+    if(identifier || literal || array_literal || array_subscript || dict_literal)
     {
       u32 match_depth;
-      EntryId entry_id = array_deref ? GetEntryIdForName(array_deref->ident->GetAsIdentifier()->name, match_depth) :
+      EntryId entry_id = array_subscript ? GetEntryIdForName(array_subscript->ident->GetAsIdentifier()->name, match_depth) :
                                        GetEntryId(expr, match_depth);
       if( entry_id == symbols.NOT_FOUND )
       {

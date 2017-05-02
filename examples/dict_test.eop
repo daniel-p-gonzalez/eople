@@ -1,9 +1,14 @@
 def main():
-  x = { 'a_string': 'blah',
-        'an_int': 2,
-        'a_float': 5.2 }
+  x = { a_string: 'blah',
+        an_int: 2,
+        a_float: 5.2 }
   print(x)
   print(x['a_string'])
   print(x['an_int'])
   print(x['a_float'])
+  print(x.a_string)
+  print(x.an_int)
+  print(x.a_float)
+  z = x.a_string
+  print(z)
 end
