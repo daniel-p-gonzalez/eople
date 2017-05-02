@@ -29,23 +29,3 @@ SCENARIO( "symbol table allows constants to be pushed", "[symbol_table]" ) {
         }
     }
 }
-
-SCENARIO( "symbol table does not combine locals and string literals with same text", "[symbol_table]" ) {
-
-    GIVEN( "A symbol table with a local named 'x'" ) {
-        Eople::SymbolTable symbols;
-
-        size_t idx = symbols.GetTableEntryIndex( "x", false );
-        REQUIRE( symbols.symbol_count() == 1 );
-        REQUIRE( symbols.constant_count() == 0 );
-
-        WHEN( "a literal string with the same text is pushed" ) {
-            size_t idx = symbols.GetTableEntryIndex( "x", true );
-
-            THEN( "constant count increases, and total symbol count increases" ) {
-                REQUIRE( symbols.constant_count() == 1 );
-                REQUIRE( symbols.symbol_count() == 2 );
-            }
-        }
-    }
-}

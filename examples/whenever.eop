@@ -2,7 +2,7 @@ class Foo():
     event_log = array(<string>)
 
     whenever event_log.size() % 3 == 0:
-        print("Flushing event log...")
+        print("event_log")
         print(event_log)
         event_log.clear()
     end

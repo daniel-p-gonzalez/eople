@@ -612,7 +612,17 @@ ExpressionNode Parser::ParseBaseFunctionCall( ExpressionNode ident_node, bool ne
       auto array_subscript_node = NodeBuilder::GetArraySubscriptNode(std::move(first_arg), m_last_line);
       auto array_subscript = array_subscript_node->GetAsArraySubscript();
 
-      array_subscript->index = std::move(ident_node);
+      static char key_count = 0;
+      std::string key_literal_label = "$subscriptkey";
+      key_literal_label += std::to_string(key_count++);
+
+      size_t string_symbol_id = m_function->symbols.GetTableEntryIndex(key_literal_label, true);
+      string_t new_string;
+      new_string = new std::string();
+      *new_string = ident_node->GetAsIdentifier()->name;
+      auto key = NodeBuilder::GetStringNode(new_string, string_symbol_id, key_literal_label, m_last_line);
+
+      array_subscript->index = std::move(key);
       return array_subscript_node;
     }
   }
@@ -741,10 +751,9 @@ ExpressionNode Parser::ParseArrayLiteral()
     return nullptr;
   }
 
-  // TODO: unsuck this
   static char count = 0;
-  std::string array_literal_label = "array literal ";
-  array_literal_label += '0' + count++;
+  std::string array_literal_label = "$arrayliteral";
+  array_literal_label += std::to_string(count++);
   size_t symbol_id = m_function->symbols.GetTableEntryIndex(array_literal_label, true);
 
   auto array_node = NodeBuilder::GetArrayNode(NodeBuilder::GetIdentifierNode( array_literal_label, symbol_id, m_last_line ), m_last_line);
@@ -787,8 +796,8 @@ ExpressionNode Parser::ParseDictLiteral()
   }
 
   static char count = 0;
-  std::string dict_literal_label = "dict literal ";
-  dict_literal_label += '0' + count++;
+  std::string dict_literal_label = "$dictliteral";
+  dict_literal_label += std::to_string(count++);
   size_t symbol_id = m_function->symbols.GetTableEntryIndex(dict_literal_label, true);
 
   auto dict_node = NodeBuilder::GetDictNode(NodeBuilder::GetIdentifierNode( dict_literal_label, symbol_id, m_last_line ), m_last_line);
@@ -800,11 +809,15 @@ ExpressionNode Parser::ParseDictLiteral()
     return 0;
   }
 
-  size_t string_symbol_id = m_function->symbols.GetTableEntryIndex(text, true);
+  static char key_count = 0;
+  std::string key_literal_label = "$key";
+  key_literal_label += std::to_string(key_count++);
+
+  size_t string_symbol_id = m_function->symbols.GetTableEntryIndex(key_literal_label, true);
   string_t new_string;
   new_string = new std::string();
   *new_string = text;
-  auto key = NodeBuilder::GetStringNode(new_string, string_symbol_id, text, m_last_line);
+  auto key = NodeBuilder::GetStringNode(new_string, string_symbol_id, key_literal_label, m_last_line);
 
   // auto key = ParseString();
   while( key )
@@ -837,11 +850,14 @@ ExpressionNode Parser::ParseDictLiteral()
         return 0;
       }
 
-      size_t string_symbol_id = m_function->symbols.GetTableEntryIndex(text, true);
+      std::string key_literal_label = "$key";
+      key_literal_label += std::to_string(key_count++);
+
+      size_t string_symbol_id = m_function->symbols.GetTableEntryIndex(key_literal_label, true);
       string_t new_string;
       new_string = new std::string();
       *new_string = text;
-      key = NodeBuilder::GetStringNode(new_string, string_symbol_id, text, m_last_line);
+      key = NodeBuilder::GetStringNode(new_string, string_symbol_id, key_literal_label, m_last_line);
       // key = ParseString();
     }
     else
@@ -897,8 +913,12 @@ ExpressionNode Parser::ParseInt(bool neg)
   char buffer[16];
   snprintf(buffer, sizeof(buffer), "%d", (u32)number);
 
-  size_t symbol_id = m_function->symbols.GetTableEntryIndex(buffer, true);
-  return NodeBuilder::GetIntNode(number, symbol_id, buffer, m_last_line);
+  static char count = 0;
+  std::string int_literal_label = "$int";
+  int_literal_label += std::to_string(count++);
+
+  size_t symbol_id = m_function->symbols.GetTableEntryIndex(int_literal_label, true);
+  return NodeBuilder::GetIntNode(number, symbol_id, int_literal_label, m_last_line);
 }
 
 ExpressionNode Parser::ParseString()
@@ -909,11 +929,15 @@ ExpressionNode Parser::ParseString()
     return 0;
   }
 
-  size_t symbol_id = m_function->symbols.GetTableEntryIndex(text, true);
+  static char count = 0;
+  std::string string_literal_label = "$string";
+  string_literal_label += std::to_string(count++);
+
+  size_t symbol_id = m_function->symbols.GetTableEntryIndex(string_literal_label, true);
   string_t new_string;
   new_string = new std::string();
   *new_string = text;
-  return NodeBuilder::GetStringNode(new_string, symbol_id, text, m_last_line);
+  return NodeBuilder::GetStringNode(new_string, symbol_id, string_literal_label, m_last_line);
 }
 
 ExpressionNode Parser::ParseBool()
@@ -1468,9 +1492,8 @@ StatementNode Parser::ParseWhen()
   // need extra storage for 'when' eval function pointer
   ++m_temp_max;
 
-  // TODO: unsuck this
-  std::string when_label = m_function->name + "::when ";
-  when_label += '0' + (char)m_when_count++;
+  std::string when_label = "$" + m_function->name + "::when";
+  when_label += std::to_string(m_when_count++);
   m_function->symbols.ForceConstant(true);
   size_t symbol_id = m_function->symbols.GetTableEntryIndex(when_label, false);
   m_function->symbols.ForceConstant(false);
@@ -1519,9 +1542,8 @@ StatementNode Parser::ParseWhenever()
   // need extra storage for 'when' eval function pointer
   ++m_temp_max;
 
-  // TODO: unsuck this
-  std::string when_label = m_function->name + "::whenever ";
-  when_label += '0' + (char)m_whenever_count++;
+  std::string when_label = "$" + m_function->name + "::whenever";
+  when_label += std::to_string(m_whenever_count++);
   m_function->symbols.ForceConstant(true);
   size_t symbol_id = m_function->symbols.GetTableEntryIndex(when_label, false);
   m_function->symbols.ForceConstant(false);
