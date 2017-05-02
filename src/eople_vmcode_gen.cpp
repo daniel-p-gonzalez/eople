@@ -323,13 +323,13 @@ size_t VMCodeGen::GenExpressionTerm( Node::ProcessMessage* process_message, bool
   return dest;
 }
 
-size_t VMCodeGen::GenExpressionTerm( Node::ArrayDereference* array_dereference, bool is_root )
+size_t VMCodeGen::GenExpressionTerm( Node::ArraySubscript* array_subscript, bool is_root )
 {
-  size_t stack_index = SYMBOL_TO_STACK(array_dereference);
-  auto array_deref_obj = array_dereference->GetAsArrayDereference();
-  size_t index_stack_index = GenExpressionTerm( array_deref_obj->index.get(), false );
+  size_t stack_index = SYMBOL_TO_STACK(array_subscript);
+  auto array_subscript_obj = array_subscript->GetAsArraySubscript();
+  size_t index_stack_index = GenExpressionTerm( array_subscript_obj->index.get(), false );
 
-  PushOpcode(Opcode::ArrayDeref);
+  PushOpcode(Opcode::ArraySubscript);
   PushOperand(stack_index);
   PushOperand(index_stack_index);
 
@@ -452,10 +452,10 @@ type_t VMCodeGen::GetType( Node::Identifier* identifier )
   return m_function_node->GetExpressionType( identifier );
 }
 
-type_t VMCodeGen::GetType( Node::ArrayDereference* array_deref_node )
+type_t VMCodeGen::GetType( Node::ArraySubscript* array_subscript_node )
 {
-  auto array_deref = array_deref_node->GetAsArrayDereference();
-  return m_function_node->GetExpressionType( array_deref->ident->GetAsIdentifier() );
+  auto array_subscript = array_subscript_node->GetAsArraySubscript();
+  return m_function_node->GetExpressionType( array_subscript->ident->GetAsIdentifier() );
 }
 
 type_t VMCodeGen::GetType( Node::Literal* literal )
@@ -619,7 +619,7 @@ size_t VMCodeGen::PushOpcode( Opcode opcode )
     OPCODE_CASE(Opcode::PrintSPromise)
     OPCODE_CASE(Opcode::PrintDict)
     OPCODE_CASE(Opcode::FunctionCall)
-    OPCODE_CASE(Opcode::ArrayDeref)
+    OPCODE_CASE(Opcode::ArraySubscript)
     OPCODE_CASE(Opcode::ProcessMessage)
     OPCODE_CASE(Opcode::Return)
     OPCODE_CASE(Opcode::ReturnValue)
@@ -930,7 +930,7 @@ void VMCodeGen::GenStatement( Node::Assignment* assignment )
   m_current_temp = m_first_temp;
 
   auto left_ident = assignment->left->GetAsIdentifier();
-  auto left_array_deref = assignment->left->GetAsArrayDereference();
+  auto left_array_subscript = assignment->left->GetAsArraySubscript();
   if( left_ident )
   {
     m_result_index = SYMBOL_TO_STACK(left_ident);
@@ -945,15 +945,15 @@ void VMCodeGen::GenStatement( Node::Assignment* assignment )
       PushOperand(rhs);
     }
   }
-  else if( left_array_deref )
+  else if( left_array_subscript )
   {
-    m_result_index = SYMBOL_TO_STACK(left_array_deref);
+    m_result_index = SYMBOL_TO_STACK(left_array_subscript);
     size_t rhs = GenExpressionTerm( assignment->right.get(), true );
     bool rhs_is_func_call = rhs == (m_function->storage_requirement+m_base_stack_offset);
 
-    size_t index_stack_index = GenExpressionTerm( left_array_deref->index.get(), false );
+    size_t index_stack_index = GenExpressionTerm( left_array_subscript->index.get(), false );
 
-    type_t op_value_type = GetType(left_array_deref);
+    type_t op_value_type = GetType(left_array_subscript);
     PushOpcode( (op_value_type == TypeBuilder::GetPrimitiveType(ValueType::STRING)) ? Opcode::StoreArrayStringElement : Opcode::StoreArrayElement );
 
     PushOperand(m_result_index);

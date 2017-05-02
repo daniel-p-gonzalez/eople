@@ -54,7 +54,7 @@ std::string InstructionToString( InstructionImpl instruction )
   INSTRUCTION_TO_STRING(PrintSPromise)
   INSTRUCTION_TO_STRING(PrintDict)
   INSTRUCTION_TO_STRING(FunctionCall)
-  INSTRUCTION_TO_STRING(ArrayDeref)
+  INSTRUCTION_TO_STRING(ArraySubscript)
   INSTRUCTION_TO_STRING(ProcessMessage)
   INSTRUCTION_TO_STRING(GreaterThanI)
   INSTRUCTION_TO_STRING(LessThanI)
@@ -126,7 +126,7 @@ InstructionImpl OpcodeToInstruction( Opcode opcode )
     OPCODE_TO_INSTRUCTION(PrintSPromise);
     OPCODE_TO_INSTRUCTION(PrintDict);
     OPCODE_TO_INSTRUCTION(FunctionCall);
-    OPCODE_TO_INSTRUCTION(ArrayDeref);
+    OPCODE_TO_INSTRUCTION(ArraySubscript);
     OPCODE_TO_INSTRUCTION(ProcessMessage);
     OPCODE_TO_INSTRUCTION(GreaterThanI);
     OPCODE_TO_INSTRUCTION(LessThanI);

@@ -54,7 +54,7 @@ enum class Opcode
   PrintSPromise,
   PrintDict,
   FunctionCall,
-  ArrayDeref,
+  ArraySubscript,
   ProcessMessage,
   GreaterThanI,
   LessThanI,

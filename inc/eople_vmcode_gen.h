@@ -56,7 +56,7 @@ private:
   size_t GenExpressionTerm( Node::FunctionCall* function_call, bool is_root );
   size_t GenExpressionTerm( Node::ProcessMessage* process_message, bool is_root );
   size_t GenExpressionTerm( Node::ArrayLiteral* array_literal, bool is_root );
-  size_t GenExpressionTerm( Node::ArrayDereference* array_dereference, bool is_root );
+  size_t GenExpressionTerm( Node::ArraySubscript* array_subscript, bool is_root );
   size_t GenExpressionTerm( Node::DictLiteral* dict_literal, bool is_root );
 
   size_t GenForInit( Node::ForInit* node );
@@ -104,7 +104,7 @@ private:
   type_t GetType( Node::BinaryOp* binary_op );
   type_t GetType( Node::FunctionCall* function_call );
   type_t GetType( Node::ProcessMessage* process_message );
-  type_t GetType( Node::ArrayDereference* array_deref );
+  type_t GetType( Node::ArraySubscript* array_subscript );
 
   Function*        GetConstructor( Node::Function* node, size_t specialization );
   Function*        GetFunction( Node::FunctionCall* node, size_t specialization );

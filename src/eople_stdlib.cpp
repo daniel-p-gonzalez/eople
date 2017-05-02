@@ -272,7 +272,7 @@ bool ArrayClear( process_t process_ref )
   return true;
 }
 
-bool ArrayDeref( process_t process_ref )
+bool ArraySubscript( process_t process_ref )
 {
   auto object = process_ref->OperandA();
   if(object->object_type == (u8)ValueType::ARRAY)

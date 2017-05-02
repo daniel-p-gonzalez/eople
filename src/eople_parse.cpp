@@ -536,7 +536,7 @@ ExpressionNode Parser::ParseValidIdentifier( std::string ident )
   return ident_node;
 }
 
-ExpressionNode Parser::ParseArrayDereference( std::string ident )
+ExpressionNode Parser::ParseArraySubscript( std::string ident )
 {
   if( !ConsumeExpected('[') )
   {
@@ -561,13 +561,13 @@ ExpressionNode Parser::ParseArrayDereference( std::string ident )
     return nullptr;
   }
 
-  auto array_deref_node = NodeBuilder::GetArrayDereferenceNode(std::move(ident_node), m_last_line);
-  auto array_deref = array_deref_node->GetAsArrayDereference();
+  auto array_subscript_node = NodeBuilder::GetArraySubscriptNode(std::move(ident_node), m_last_line);
+  auto array_subscript = array_subscript_node->GetAsArraySubscript();
 
   bool neg = ConsumeExpected('-');
-  array_deref->index = ParseExpression();
+  array_subscript->index = ParseExpression();
 
-  if( !array_deref->index )
+  if( !array_subscript->index )
   {
     BumpError();
     Log::Error("(%d): Parse Error: Array dereference missing index.\n", m_last_error_line );
@@ -579,7 +579,7 @@ ExpressionNode Parser::ParseArrayDereference( std::string ident )
     Log::Error("(%d): Parse Error: Array dereference missing closing ']'.\n", m_last_error_line );
   }
 
-  return array_deref_node;
+  return array_subscript_node;
 }
 
 // Used by both expression and statement flavors
@@ -609,11 +609,11 @@ ExpressionNode Parser::ParseBaseFunctionCall( ExpressionNode ident_node, bool ne
       // must be dict member access
       // this would be cleaner with backtracking,
       //  but let's just return an array access node here
-      auto array_deref_node = NodeBuilder::GetArrayDereferenceNode(std::move(first_arg), m_last_line);
-      auto array_deref = array_deref_node->GetAsArrayDereference();
+      auto array_subscript_node = NodeBuilder::GetArraySubscriptNode(std::move(first_arg), m_last_line);
+      auto array_subscript = array_subscript_node->GetAsArraySubscript();
 
-      array_deref->index = std::move(ident_node);
-      return array_deref_node;
+      array_subscript->index = std::move(ident_node);
+      return array_subscript_node;
     }
   }
 
@@ -980,7 +980,7 @@ ExpressionNode Parser::ParseFactor()
       return expr_node;
     }
 
-    expr_node = ParseArrayDereference(ident);
+    expr_node = ParseArraySubscript(ident);
     if( expr_node )
     {
       return expr_node;
@@ -1764,13 +1764,13 @@ StatementNode Parser::ParseStatement()
   auto ident_node = ParseIdentifier();
   if( ident_node )
   {
-    auto array_deref_node = ParseArrayDereference(ident_node->GetAsIdentifier()->name);
+    auto array_subscript_node = ParseArraySubscript(ident_node->GetAsIdentifier()->name);
     // is this an assignment?
     if( m_current_token == '=' || (m_current_token >= TOK_ADD_ASSIGN && m_current_token <= TOK_MOD_ASSIGN) )
     {
-      if( array_deref_node )
+      if( array_subscript_node )
       {
-        statement = ParseAssignment( std::move(array_deref_node) );
+        statement = ParseAssignment( std::move(array_subscript_node) );
       }
       else
       {
@@ -1781,7 +1781,7 @@ StatementNode Parser::ParseStatement()
         return statement;
       }
     }
-    else if( array_deref_node )
+    else if( array_subscript_node )
     {
       BumpError();
       if( m_current_token != TOK_NEWLINE )

@@ -26,7 +26,7 @@ bool ArrayTopArray( process_t process_ref );
 bool ArrayTopString( process_t process_ref );
 bool ArrayPop( process_t process_ref );
 bool ArrayClear( process_t process_ref );
-bool ArrayDeref( process_t process_ref );
+bool ArraySubscript( process_t process_ref );
 bool GetTime( process_t process_ref );
 bool Timer( process_t process_ref );
 bool SleepMilliseconds( process_t process_ref );

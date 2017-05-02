@@ -56,7 +56,7 @@ namespace Node
   struct FunctionCall;
   struct Return;
   struct BinaryOp;
-  struct ArrayDereference;
+  struct ArraySubscript;
   struct Literal;
   struct TypeLiteral;
   struct ArrayLiteral;
@@ -86,7 +86,7 @@ typedef std::unique_ptr<Node::FunctionCall>      FunctionCallNode;
 typedef std::unique_ptr<Node::ProcessMessage>    ProcessMessageNode;
 typedef std::unique_ptr<Node::Return>            ReturnNode;
 typedef std::unique_ptr<Node::BinaryOp>          BinaryOpNode;
-typedef std::unique_ptr<Node::ArrayDereference>  ArrayDereferenceNode;
+typedef std::unique_ptr<Node::ArraySubscript>  ArraySubscriptNode;
 typedef std::unique_ptr<Node::TypeLiteral>       TypeLiteralNode;
 typedef std::unique_ptr<Node::ArrayLiteral>      ArrayLiteralNode;
 typedef std::unique_ptr<Node::DictLiteral>       DictLiteralNode;
@@ -142,7 +142,7 @@ namespace Node
     virtual FunctionCall*   GetAsFunctionCall()   { return nullptr; }
     virtual ProcessMessage* GetAsProcessMessage() { return nullptr; }
     virtual Return*         GetAsReturn()         { return nullptr; }
-    virtual ArrayDereference* GetAsArrayDereference() { return nullptr; }
+    virtual ArraySubscript* GetAsArraySubscript() { return nullptr; }
 
     u32 line;
   };
@@ -250,14 +250,14 @@ namespace Node
     type_t array_type;
   };
 
-  struct ArrayDereference : public Expression
+  struct ArraySubscript : public Expression
   {
-    ArrayDereference( ExpressionNode in_ident, u32 line )
+    ArraySubscript( ExpressionNode in_ident, u32 line )
       : Expression(line), ident(std::move(in_ident))
     {
     }
 
-    ArrayDereference* GetAsArrayDereference() { return this; }
+    ArraySubscript* GetAsArraySubscript() { return this; }
 
     ExpressionNode ident;
     ExpressionNode index;
@@ -704,9 +704,9 @@ struct NodeBuilder
     return ExpressionNode( new Node::ArrayLiteral( std::move(ident), line ) );
   }
 
-  static ExpressionNode GetArrayDereferenceNode( ExpressionNode ident, u32 line )
+  static ExpressionNode GetArraySubscriptNode( ExpressionNode ident, u32 line )
   {
-    return ExpressionNode( new Node::ArrayDereference( std::move(ident), line ) );
+    return ExpressionNode( new Node::ArraySubscript( std::move(ident), line ) );
   }
 
   static ExpressionNode GetDictNode( ExpressionNode ident, u32 line )
@@ -805,7 +805,7 @@ public:
     auto function_call      = node->GetAsFunctionCall();
     auto process_call       = node->GetAsProcessMessage();
     auto return_statement   = node->GetAsReturn();
-    auto array_dereference  = node->GetAsArrayDereference();
+    auto array_subscript  = node->GetAsArraySubscript();
 
     if( module )
     {
@@ -895,9 +895,9 @@ public:
     {
       static_cast<BASECLASS_T*>(this)->Process(return_statement);
     }
-    else if( array_dereference )
+    else if( array_subscript )
     {
-      static_cast<BASECLASS_T*>(this)->Process(array_dereference);
+      static_cast<BASECLASS_T*>(this)->Process(array_subscript);
     }
   }
 };
