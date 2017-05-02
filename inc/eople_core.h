@@ -39,6 +39,7 @@ enum class Opcode
   BOr,
   ConcatS,
   EqualS,
+  NotEqualS,
   ForI,
   ForF,
   ForA,

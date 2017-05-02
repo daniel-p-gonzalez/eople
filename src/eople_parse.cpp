@@ -582,6 +582,97 @@ ExpressionNode Parser::ParseArrayDereference( std::string ident )
   return array_deref_node;
 }
 
+// Used by both expression and statement flavors
+ExpressionNode Parser::ParseBaseFunctionCall( ExpressionNode ident_node, bool need_terminator )
+{
+  bool struct_call = false;
+  ExpressionNode first_arg = nullptr;
+
+  if( !ConsumeExpected('(') )
+  {
+    if( !ConsumeExpected(TOK_STRUCT_CALL) )
+    {
+      return nullptr;
+    }
+    struct_call = true;
+    // ident_node is first parameter of call
+    first_arg = std::move(ident_node);
+    ident_node = ParseIdentifier();
+    if( !ident_node )
+    {
+      BumpError();
+      Log::Error("(%d): Parse Error: Expected struct method name after '%s.'.\n", m_last_error_line, first_arg->GetAsIdentifier()->name.c_str());
+      return nullptr;
+    }
+    if( !ConsumeExpected('(') )
+    {
+      // must be dict member access
+      // this would be cleaner with backtracking,
+      //  but let's just return an array access node here
+      auto array_deref_node = NodeBuilder::GetArrayDereferenceNode(std::move(first_arg), m_last_line);
+      auto array_deref = array_deref_node->GetAsArrayDereference();
+
+      array_deref->index = std::move(ident_node);
+      return array_deref_node;
+    }
+  }
+
+  ++m_temp_count;
+
+  ExpressionNode function_call_node = NodeBuilder::GetFunctionCallNode( std::move(ident_node), m_last_line );
+  auto function_call = function_call_node->GetAsFunctionCall();
+
+  // capture the enclosing namespace
+  function_call->namespace_stack = m_namespace_stack;
+
+  // if this is using method-style syntactic sugar, add object as first parameter
+  if( first_arg )
+  {
+    function_call->arguments.push_back( std::move(first_arg) );
+  }
+
+  // allow newline between '(' and the function arguments
+  ConsumeNewlines();
+  auto arg = ParseExpression();
+  while( arg )
+  {
+    function_call->arguments.push_back( std::move(arg) );
+
+    // consume leading newlines between args
+    ConsumeNewlines();
+
+    arg = ConsumeExpected(',') ? ParseExpression() : 0;
+  }
+  // allow newline between the function arguments and ')'
+  ConsumeNewlines();
+
+  if( !ConsumeExpected(')') )
+  {
+    BumpError();
+    Log::Error("(%d): Parse Error: Function call missing closing %c.\n", m_last_error_line, ')');
+    return nullptr;
+  }
+
+  if( need_terminator && m_current_token != TOK_NEWLINE && m_current_token != TOK_EOF && m_current_token != ';' )
+  {
+    BumpError();
+    Log::Error("(%d): Parse Error: Expected a statement separater, got '%s' instead.\n", m_last_error_line, m_lex->TokenToString().c_str());
+    return nullptr;
+  }
+
+  if( need_terminator )
+  {
+    ConsumeToken();
+  }
+
+  if( need_terminator )
+  {
+    m_temp_max = m_temp_count > m_temp_max ? m_temp_count : m_temp_max;
+    m_temp_count = 0;
+  }
+  return function_call_node;
+}
+
 ExpressionNode Parser::ParseFunctionCallExpression( std::string ident )
 {
   bool struct_call = m_current_token == TOK_STRUCT_CALL;
@@ -593,7 +684,7 @@ ExpressionNode Parser::ParseFunctionCallExpression( std::string ident )
   auto ident_node = struct_call ? ParseValidIdentifier(ident) :
                                   NodeBuilder::GetIdentifierNode(ident, m_function->symbols.GetTableEntryIndex(ident, false), m_last_line);
 
-  ExpressionNode func_node = ParseFunctionCall( std::move(ident_node), false );
+  ExpressionNode func_node = ParseBaseFunctionCall( std::move(ident_node), false );
   if( func_node )
   {
     return func_node;
@@ -703,7 +794,19 @@ ExpressionNode Parser::ParseDictLiteral()
   auto dict_node = NodeBuilder::GetDictNode(NodeBuilder::GetIdentifierNode( dict_literal_label, symbol_id, m_last_line ), m_last_line);
   auto dict = dict_node->GetAsDictLiteral();
 
-  auto key = ParseString();
+  std::string text = m_lex->GetString();
+  if( !ConsumeExpected(TOK_IDENTIFIER) )
+  {
+    return 0;
+  }
+
+  size_t string_symbol_id = m_function->symbols.GetTableEntryIndex(text, true);
+  string_t new_string;
+  new_string = new std::string();
+  *new_string = text;
+  auto key = NodeBuilder::GetStringNode(new_string, string_symbol_id, text, m_last_line);
+
+  // auto key = ParseString();
   while( key )
   {
     if( !ConsumeExpected(':') )
@@ -728,7 +831,18 @@ ExpressionNode Parser::ParseDictLiteral()
 
     if( another )
     {
-      key = ParseString();
+      std::string text = m_lex->GetString();
+      if( !ConsumeExpected(TOK_IDENTIFIER) )
+      {
+        return 0;
+      }
+
+      size_t string_symbol_id = m_function->symbols.GetTableEntryIndex(text, true);
+      string_t new_string;
+      new_string = new std::string();
+      *new_string = text;
+      key = NodeBuilder::GetStringNode(new_string, string_symbol_id, text, m_last_line);
+      // key = ParseString();
     }
     else
     {
@@ -1590,104 +1704,21 @@ StatementNode Parser::ParseProcessMessage( ExpressionNode process_node )
 
 StatementNode Parser::ParseFunctionCall( ExpressionNode ident_node, bool need_terminator )
 {
-  bool struct_call = false;
-  ExpressionNode first_arg = nullptr;
-
-  if( !ConsumeExpected('(') )
+  auto function_call_node = ParseBaseFunctionCall(std::move(ident_node), need_terminator);
+  if( !function_call_node )
   {
-    if( !ConsumeExpected(TOK_STRUCT_CALL) )
-    {
-      return nullptr;
-    }
-    struct_call = true;
-    // ident_node is first parameter of call
-    first_arg = std::move(ident_node);
-    ident_node = ParseIdentifier();
-    if( !ident_node )
-    {
-      BumpError();
-      Log::Error("(%d): Parse Error: Expected struct method name after '%s.'.\n", m_last_error_line, first_arg->GetAsIdentifier()->name.c_str());
-      return nullptr;
-    }
-    if( !ConsumeExpected('(') )
-    {
-      // must be a struct member variable dereference
-      return NodeBuilder::GetStructDereferenceNode( first_arg->GetAsIdentifier()->name, ident_node->GetAsIdentifier()->name, m_last_line );
-    }
+    return nullptr;
   }
 
-  ++m_temp_count;
-
-  // find symbol for function call, and move to constant register
-  {
-    auto &func_name = ident_node->GetAsIdentifier()->name;
-    auto function = m_function;
-    size_t symbol_id = m_function->symbols.GetTableEntryIndex(func_name, false, true);
-    Node::Function* parent = m_function->context;
-    // TODO: this is necessary because of how ParseIdentifier() recursively searches if symbol already exists.
-    //       symbol may be found if this is eg. a recursive function call in a nested function.
-    while( parent && symbol_id == m_function->symbols.NOT_FOUND )
-    {
-      function = parent;
-      symbol_id = parent->symbols.GetTableEntryIndex(func_name, false, true);
-      parent = parent->context;
-    }
-    assert( function != nullptr && symbol_id != m_function->symbols.NOT_FOUND );
-    function->symbols.ConvertToConstant(symbol_id);
-  }
-
-  auto function_call_node = NodeBuilder::GetFunctionCallNode( std::move(ident_node), m_last_line );
   auto function_call = function_call_node->GetAsFunctionCall();
-
-  // capture the enclosing namespace
-  function_call->namespace_stack = m_namespace_stack;
-
-  // if this is using method-style syntactic sugar, add object as first parameter
-  if( first_arg )
-  {
-    function_call->arguments.push_back( std::move(first_arg) );
-  }
-
-  // allow newline between '(' and the function arguments
-  ConsumeNewlines();
-  auto arg = ParseExpression();
-  while( arg )
-  {
-    function_call->arguments.push_back( std::move(arg) );
-
-    // consume leading newlines between args
-    ConsumeNewlines();
-
-    arg = ConsumeExpected(',') ? ParseExpression() : 0;
-  }
-  // allow newline between the function arguments and ')'
-  ConsumeNewlines();
-
-  if( !ConsumeExpected(')') )
+  if( !function_call )
   {
     BumpError();
-    Log::Error("(%d): Parse Error: Function call missing closing %c.\n", m_last_error_line, ')');
+    Log::Error("(%d): Parse Error: Malformed function call statement.\n", m_last_error_line);
     return nullptr;
   }
 
-  if( need_terminator && m_current_token != TOK_NEWLINE && m_current_token != TOK_EOF && m_current_token != ';' )
-  {
-    BumpError();
-    Log::Error("(%d): Parse Error: Expected a statement separater, got '%s' instead.\n", m_last_error_line, m_lex->TokenToString().c_str());
-    return nullptr;
-  }
-
-  if( need_terminator )
-  {
-    ConsumeToken();
-  }
-
-  if( need_terminator )
-  {
-    m_temp_max = m_temp_count > m_temp_max ? m_temp_count : m_temp_max;
-    m_temp_count = 0;
-  }
-  return function_call_node;
+  return StatementNode(function_call_node.release()->GetAsFunctionCall());
 }
 
 StatementNode Parser::ParseReturn()

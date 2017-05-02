@@ -167,7 +167,17 @@ size_t VMCodeGen::GenExpressionTerm( Node::BinaryOp* binary_op, bool is_root )
     }
     case OpType::NEQ:
     {
-      CHOOSE_OP_IF_UNSET(NotEqual);
+      if( opcode == Opcode::NOP )
+      {
+        switch(GetType(binary_op->left.get())->type)
+        {
+          case ValueType::FLOAT:  { opcode = Opcode::NotEqualF;    break; }
+          case ValueType::INT:    { opcode = Opcode::NotEqualI;    break; }
+          case ValueType::BOOL:   { opcode = Opcode::NotEqualI;    break; }
+          case ValueType::STRING: { opcode = Opcode::NotEqualS; break; }
+          default:                { opcode = Opcode::NOP;     break; }
+        }
+      }
       break;
     }
     case OpType::LEQ:
@@ -581,6 +591,7 @@ size_t VMCodeGen::PushOpcode( Opcode opcode )
     OPCODE_CASE(Opcode::BOr)
     OPCODE_CASE(Opcode::ConcatS)
     OPCODE_CASE(Opcode::EqualS)
+    OPCODE_CASE(Opcode::NotEqualS)
     OPCODE_CASE(Opcode::GreaterThanI)
     OPCODE_CASE(Opcode::LessThanI)
     OPCODE_CASE(Opcode::EqualI)

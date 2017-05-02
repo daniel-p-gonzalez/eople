@@ -66,6 +66,7 @@ private:
   ExpressionNode   ParseBitwiseOrExpression();
   ExpressionNode   ParseCompExpression();
   ExpressionNode   ParseParExpression();
+  ExpressionNode   ParseBaseFunctionCall( ExpressionNode ident_node, bool need_terminator );
   ExpressionNode   ParseFunctionCallExpression( std::string ident );
   ExpressionNode   ParseStructMember();
   StatementNode    ParseProcessMessage( ExpressionNode ident_node );

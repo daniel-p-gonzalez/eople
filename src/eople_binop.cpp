@@ -202,6 +202,20 @@ bool EqualS( process_t process_ref )
   return true;
 }
 
+bool NotEqualS( process_t process_ref )
+{
+  Object* op_a = process_ref->OperandA();
+  Object* op_b = process_ref->OperandB();
+
+  process_ref->OperandC()->bool_val = *op_a->string_ref != *op_b->string_ref;
+
+  // if operands were temporary objects, free them right away
+  process_ref->TryCollectTempString(op_a);
+  process_ref->TryCollectTempString(op_b);
+
+  return true;
+}
+
 //
 // Boolean logic
 //
