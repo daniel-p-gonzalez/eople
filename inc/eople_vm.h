@@ -7,6 +7,7 @@
 #include <condition_variable>
 #include <queue>
 #include <memory>
+#include <iostream>
 
 namespace Eople
 {
@@ -80,9 +81,15 @@ inline void ExecutionLoop( CallData& call_data )
   process_t process_ref = call_data.process_ref;
   const VMCode* &ip = process_ref->ip;
 
-  while( ip->instruction(process_ref) )
+  try
   {
-    ++ip;
+    while( ip->instruction(process_ref) )
+    {
+      ++ip;
+    }
+  } catch(std::runtime_error ex)
+  {
+    std::cerr << BOLD(RED("Uncaught Exception: ")) << ex.what() << std::endl;
   }
 }
 
@@ -93,9 +100,15 @@ inline void ExecutionLoopIncremental( CallData& call_data )
   process_ref->ip += process_ref->incremental_ip_offset;
   const VMCode* &ip = process_ref->ip;
 
-  while( ip->instruction(process_ref) )
+  try
   {
-    ++ip;
+    while( ip->instruction(process_ref) )
+    {
+      ++ip;
+    }
+  } catch(std::runtime_error ex)
+  {
+    std::cerr << BOLD(RED("Uncaught Exception: ")) << ex.what() << std::endl;
   }
 
   process_ref->incremental_ip_offset = ip - start_ip;
@@ -138,7 +151,7 @@ private:
   u32                                 core_count;
 
   VirtualMachine(const VirtualMachine&);
-  VirtualMachine& operator=(const VirtualMachine&);  
+  VirtualMachine& operator=(const VirtualMachine&);
 };
 
 }
