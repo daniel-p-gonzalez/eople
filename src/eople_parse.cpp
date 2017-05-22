@@ -707,7 +707,7 @@ ExpressionNode Parser::ParseFunctionCallExpression( std::string ident )
 ExpressionNode Parser::ParseType()
 {
   //"int", "string", "float", "array", "list", "table",
-  if( !ConsumeExpected('<') )
+  if( !ConsumeExpected(':') )
   {
     return 0;
   }
@@ -729,17 +729,19 @@ ExpressionNode Parser::ParseType()
     if( ident == type_list[i] )
     {
       type = (ValueType)((size_t)ValueType::FLOAT + i);
+      break;
     }
+  }
+
+  if( type == ValueType::NIL )
+  {
+    BumpError();
+    Log::Error("(%d): Parse Error: Unknown type: %s.\n", m_last_error_line, ident.c_str() );
+    return nullptr;
   }
 
   ident += " type";
   auto node = NodeBuilder::GetTypeNode( TypeBuilder::GetPrimitiveType(type), m_function->symbols.GetTableEntryIndex(ident, true), ident, m_last_line );
-
-  if( !ConsumeExpected('>') )
-  {
-    BumpError();
-    Log::Error("(%d): Parse Error: Type literal missing closing '>'.\n", m_last_error_line );
-  }
 
   return node;
 }

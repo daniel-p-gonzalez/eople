@@ -42,7 +42,7 @@ namespace Node
 
     if( mismatch )
     {
-      throw "Type Mismatch";
+      throw std::runtime_error("Type Mismatch");
     }
 
     return mismatch;
@@ -199,7 +199,7 @@ namespace Node
 
     if( mismatch )
     {
-      throw "Type Mismatch";
+      throw std::runtime_error("Type Mismatch");
     }
 
     r_type = type;
@@ -225,7 +225,7 @@ namespace Node
 
       if( mismatch )
       {
-        throw "Type Mismatch";
+        throw std::runtime_error("Type Mismatch");
       }
 
       entry->type = type;
@@ -608,7 +608,7 @@ namespace Node
 //  }
 //  else
 //  {
-//    throw "Unhandled node type in ASTDispatcher::WalkNode.";
+//    throw std::runtime_error("Unhandled node type in ASTDispatcher::WalkNode.");
 //  }
 //}
 //

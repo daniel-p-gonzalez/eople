@@ -182,7 +182,7 @@ namespace Node
     {
       if( value_type != type )
       {
-        throw "Type Mismatch";
+        throw std::runtime_error("Type Mismatch");
       }
 
       return value_type == type;
@@ -239,7 +239,7 @@ namespace Node
     {
       if( array_type != type )
       {
-        throw "Type Mismatch";
+        throw std::runtime_error("Type Mismatch");
       }
 
       return true;

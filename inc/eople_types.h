@@ -220,7 +220,7 @@ struct PromiseType : public Type
   {
     if(!result_type->IsIncompleteType() && result_type != varying_type)
     {
-      throw "Type Mismatch";
+      throw std::runtime_error("Type Mismatch");
     }
     result_type = varying_type;
   }
@@ -245,7 +245,7 @@ struct ArrayType : public Type
   {
     if(!element_type->IsIncompleteType() && element_type != varying_type)
     {
-      throw "Type Mismatch";
+      throw std::runtime_error("Type Mismatch");
     }
     element_type = varying_type;
   }
@@ -274,7 +274,7 @@ struct KindType : public Type
   {
     if(!kind_type->IsIncompleteType() && kind_type != varying_type)
     {
-      throw "Type Mismatch";
+      throw std::runtime_error("Type Mismatch");
     }
     kind_type = varying_type;
   }
