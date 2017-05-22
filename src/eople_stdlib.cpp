@@ -281,7 +281,10 @@ bool ArraySubscript( process_t process_ref )
     int_t index = process_ref->OperandB()->int_val;
     auto result = process_ref->OperandC();
 
-    assert(index < array_ref.size());
+    if( index >= array_ref.size() )
+    {
+      throw std::runtime_error("Array index out of bounds.");
+    }
     *result = array_ref[index];
   }
   else if(object->object_type == (u8)ValueType::DICT)
@@ -290,6 +293,10 @@ bool ArraySubscript( process_t process_ref )
     std::string key = *process_ref->OperandB()->string_ref;
     auto result = process_ref->OperandC();
 
+    if( dict_ref.find(key) == dict_ref.end() )
+    {
+      throw std::runtime_error(std::string("No such key: ") + key);
+    }
     *result = dict_ref[key];
   }
 

@@ -244,8 +244,15 @@ bool ExecutionEnvironment::ExecuteBuffer( std::string code )
   u32 error_count = m_parser.GetErrorCount();
   if( !error_count )
   {
-    m_type_infer.IncrementalInfer(&m_repl_module);
-    error_count += m_type_infer.GetErrorCount();
+    try
+    {
+      m_type_infer.IncrementalInfer(&m_repl_module);
+      error_count += m_type_infer.GetErrorCount();
+    } catch( std::runtime_error ex )
+    {
+      std::cerr << BOLD(RED("Type Error: ")) << ex.what() << std::endl;
+      error_count += 1;
+    }
   }
 
   if( !error_count )

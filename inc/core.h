@@ -44,6 +44,11 @@ namespace Eople
 std::string convert_raw_string( std::string &formatted_string );
 std::string utf8_error_to_string( utf8::utf_error error );
 
+#define END_COLOR_CODE "\x1b[0m"
+#define RED_COLOR_CODE "\x1b[31m"
+#define RED(str) RED_COLOR_CODE str END_COLOR_CODE
+#define BOLD(str) "\x1b[1m" str END_COLOR_CODE
+
 template<typename T> T Min( T x, T y )
 {
   return x > y ? y : x;
