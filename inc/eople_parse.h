@@ -5,20 +5,27 @@
 #include "eople_ast.h"
 
 #include <functional>
+#include <unordered_set>
 
 namespace Eople
 {
 
 struct Function;
 
+//                module_name, imported_symbols
+typedef std::pair<std::string, std::unordered_set<std::string>> ModuleImportInfo;
+
 class Parser
 {
 public:
   Parser();
 
-  void ParseModule( Lexer &lexer, Node::Module* module );
+  void ParseModule( Lexer &lexer, Node::Module* module,
+                    std::string module_namespace,
+                    const std::unordered_set<std::string> &exported_functions);
   void IncrementalParse( Lexer &lexer, Node::Module* module );
   u32 GetErrorCount() { return m_error_count; }
+  std::vector<ModuleImportInfo>& GetImportedModules() { return m_imported_modules; }
 
 private:
   Parser& operator=(const Parser&){}
@@ -86,6 +93,7 @@ private:
   FunctionNode     ParseFunction( bool is_constructor );
   StructNode       ParseStruct();
   bool             ParseNamespace();
+  bool             ParseImport();
 
   void PushNamespace( std::string name )
   {
@@ -110,6 +118,9 @@ private:
 
   std::vector<std::string>     m_namespace_stack;
   std::vector<Node::Function*> m_context_stack;
+
+  std::vector<ModuleImportInfo>   m_imported_modules;
+  std::unordered_set<std::string> m_exported_functions;
 
   // current function being parsed
   Node::Function* m_function;

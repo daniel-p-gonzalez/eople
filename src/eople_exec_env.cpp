@@ -192,9 +192,33 @@ bool ExecutionEnvironment::ImportModuleFromFile( std::string file_name )
   // auto import builtins into module
   module->imported.push_back(m_builtins.raw_module);
   // parse input / transform into ast, and store in module
-  m_parser.ParseModule(lexer, module);
+  m_parser.ParseModule(lexer, module, "", {});
 
   delete[] buffer;
+
+  auto &imported_modules = m_parser.GetImportedModules();
+  for( size_t i = 0; i < imported_modules.size(); ++i )
+  {
+    auto module_name = imported_modules[i].first;
+    auto imported_symbols = imported_modules[i].second;
+    const char* buffer;
+    const char* buffer_end;
+
+    if( !loadFile( module_name + ".eop", buffer, buffer_end ) )
+    {
+      Log::Error(" Import of file '%s' failed.\n", module_name.c_str());
+      return false;
+    }
+
+    Log::Debug(" Importing module '%s'.\n", module_name.c_str());
+
+    // initialize lexer with input buffer
+    Lexer lexer( buffer, buffer_end );
+    // parse input / transform into ast, and store in module
+    m_parser.ParseModule(lexer, module, module_name, imported_symbols);
+
+    delete[] buffer;
+  }
 
   Log::PopContext();
 

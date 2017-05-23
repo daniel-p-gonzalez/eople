@@ -7,7 +7,7 @@
 namespace Eople
 {
 
-#define KEYWORD_LIST "namespace", "struct", "def", "class", "end", \
+#define KEYWORD_LIST "namespace", "import", "from", "struct", "def", "class", "end", \
                      "if", "else", "elif", "for", "in", "to", "by", "while", "when", "whenever", \
                      "return", "break", "private", "const", "true", "false", "and", "or", \
                      "not"
@@ -258,6 +258,9 @@ std::string Lexer::TokenToString()
     case TOK_BOOL:
     case TOK_STRING:
     case TOK_IDENTIFIER:
+    case TOK_NAMESPACE:
+    case TOK_IMPORT:
+    case TOK_FROM:
     case TOK_FUNCTION:
     case TOK_CLASS:
     case TOK_STRUCT:

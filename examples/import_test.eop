@@ -1,0 +1,20 @@
+import util
+from math import min, max
+from area_actor import Area
+
+def main():
+  util::say_hello()
+  print("max(7, 9) == " + to_string(max(7, 9)))
+  print("min(5.5, 10.25) == " + to_string(min(5.5, 10.25)))
+
+
+  Pid = Area()
+
+  rectangle_area = Pid->Rectangle(6, 10)
+  circle_area    = Pid->Circle(23.0)
+
+  when rectangle_area and circle_area:
+    print("Rectangle area (6 X 10): " + to_string(rectangle_area.get_value()))
+    print("Circle area (23.0): " + to_string(circle_area.get_value()))
+  end
+end

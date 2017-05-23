@@ -1,0 +1,13 @@
+def min(a, b):
+  if a < b:
+    return a
+  end
+  return b
+end
+
+def max(a, b):
+  if a > b:
+    return a
+  end
+  return b
+end

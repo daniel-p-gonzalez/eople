@@ -18,6 +18,8 @@ enum Token
   TOK_STRING,      // eg. "this is a string"
   // keywords (order matters)
   TOK_NAMESPACE,
+  TOK_IMPORT,
+  TOK_FROM,
   TOK_STRUCT,
   TOK_FUNCTION,    // function (function declaration)
   TOK_CLASS,       // class (class declaration)
