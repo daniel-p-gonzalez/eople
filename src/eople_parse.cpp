@@ -16,7 +16,9 @@ Parser::Parser()
 static u32 s_temp_index = 0;
 static u32 s_indent_level = 0;
 
-void Parser::ParseModule( Lexer &lexer, Node::Module* module )
+void Parser::ParseModule( Lexer &lexer, Node::Module* module,
+                          std::string module_namespace,
+                          const std::unordered_set<std::string> &exported_functions )
 {
   m_error_count = 0;
   m_current_module = module;
@@ -27,13 +29,20 @@ void Parser::ParseModule( Lexer &lexer, Node::Module* module )
   m_symbols = nullptr;
   m_temp_count = m_temp_max = 0;
   m_whenever_count = m_when_count = 0;
+  m_exported_functions = exported_functions;
+
+  if( !module_namespace.empty() )
+  {
+    PushNamespace(module_namespace);
+  }
 
   ConsumeToken();
 
   FunctionNode func;
   FunctionNode constructor;
   StructNode   struct_node;
-  while( (struct_node = ParseStruct()) || (func = ParseFunction(false)) || (constructor = ParseClass()) || ParseNamespace() )
+  while( (struct_node = ParseStruct()) || (func = ParseFunction(false)) ||
+         (constructor = ParseClass()) || ParseNamespace() || ParseImport() )
   {
     if( struct_node )
     {
@@ -57,6 +66,11 @@ void Parser::ParseModule( Lexer &lexer, Node::Module* module )
       Log::Error("(%d): Parse Error: Expected function, namespace, or EOF. Got '%s' instead.\n", m_last_error_line, m_lex->TokenToString().c_str());
       return;
     }
+  }
+
+  if( !module_namespace.empty() )
+  {
+    PopNamespace();
   }
 }
 
@@ -122,6 +136,66 @@ void Parser::IncrementalParse( Lexer &lexer, Node::Module* module )
       return;
     }
   }
+}
+
+bool Parser::ParseImport()
+{
+  ConsumeNewlines();
+
+  bool do_symbol_import = false;
+  if( ConsumeExpected(TOK_FROM) )
+  {
+    do_symbol_import = true;
+  }
+
+  if( !do_symbol_import && !ConsumeExpected(TOK_IMPORT) )
+  {
+    return false;
+  }
+
+  std::string module_name = m_lex->GetString();
+  if( !ConsumeExpected(TOK_IDENTIFIER) )
+  {
+    BumpError();
+    Log::Error("(%d): Parse Error: Expected module name, got '%s' instead.\n", m_last_error_line, m_lex->TokenToString().c_str());
+    return false;
+  }
+
+  std::unordered_set<std::string> symbol_set;
+  if( do_symbol_import )
+  {
+    if( !ConsumeExpected(TOK_IMPORT) )
+    {
+      BumpError();
+      Log::Error("(%d): Parse Error: Expected 'import', got '%s' instead.\n", m_last_error_line, m_lex->TokenToString().c_str());
+      return false;
+    }
+
+    std::string symbol_name = m_lex->GetString();
+    if( !ConsumeExpected(TOK_IDENTIFIER) )
+    {
+      BumpError();
+      Log::Error("(%d): Parse Error: Expected list of symbols to import, got '%s' instead.\n", m_last_error_line, m_lex->TokenToString().c_str());
+      return false;
+    }
+
+    symbol_set.insert(symbol_name);
+    while(ConsumeExpected(','))
+    {
+      std::string symbol_name = m_lex->GetString();
+      if( !ConsumeExpected(TOK_IDENTIFIER) )
+      {
+        BumpError();
+        Log::Error("(%d): Parse Error: Expected list of symbols to import, got '%s' instead.\n", m_last_error_line, m_lex->TokenToString().c_str());
+        return false;
+      }
+
+      symbol_set.insert(symbol_name);
+    }
+  }
+
+  m_imported_modules.push_back(std::make_pair(module_name, symbol_set));
+  return true;
 }
 
 bool Parser::ParseNamespace()
@@ -321,8 +395,17 @@ FunctionNode Parser::ParseFunction( bool is_constructor )
   ConsumeNewlines();
 
   // grab name from identifier, and begin function scope
+  bool is_exported = m_exported_functions.find(func_name) != m_exported_functions.end();
+  std::vector<std::string> old_namespace_stack;
+  if( is_exported )
+  {
+    old_namespace_stack = m_namespace_stack;
+    m_namespace_stack.clear();
+  }
+
   std::string parent_scope = m_namespace_stack.size() > 0 ? m_namespace_stack.back() : "";
   std::string ident(parent_scope + func_name);
+
   auto func = NodeBuilder::GetFunctionNode( ident, m_last_line );
   Node::Function* outer_function = m_function;
   m_function = func.get();
@@ -426,6 +509,11 @@ FunctionNode Parser::ParseFunction( bool is_constructor )
   if( is_constructor )
   {
     PopNamespace();
+  }
+
+  if( is_exported )
+  {
+    m_namespace_stack = old_namespace_stack;
   }
 
   // consume trailing newlines
