@@ -1,5 +1,5 @@
 class Foo():
-    event_log = array(<string>)
+    event_log = array(:string)
 
     whenever event_log.size() % 3 == 0:
         print("event_log")

@@ -430,6 +430,12 @@ FunctionNode Parser::ParseFunction( bool is_constructor )
   auto parameter = ParseIdentifier();
   while( parameter )
   {
+    auto type_annotation_node = ParseType();
+    if( type_annotation_node )
+    {
+      parameter->TrySetValueType(type_annotation_node->GetValueType());
+    }
+
     func->parameters.push_back( std::move(parameter) );
 
     // consume leading newlines between args
@@ -797,7 +803,7 @@ ExpressionNode Parser::ParseType()
   //"int", "string", "float", "array", "list", "table",
   if( !ConsumeExpected(':') )
   {
-    return 0;
+    return nullptr;
   }
 
   std::string ident = m_lex->GetString();
@@ -1876,6 +1882,11 @@ StatementNode Parser::ParseStatement()
   auto ident_node = ParseIdentifier();
   if( ident_node )
   {
+    auto type_annotation_node = ParseType();
+    if( type_annotation_node )
+    {
+      ident_node->TrySetValueType(type_annotation_node->GetValueType());
+    }
     auto array_subscript_node = ParseArraySubscript(ident_node->GetAsIdentifier()->name);
     // is this an assignment?
     if( m_current_token == '=' || (m_current_token >= TOK_ADD_ASSIGN && m_current_token <= TOK_MOD_ASSIGN) )

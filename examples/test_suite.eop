@@ -8,7 +8,7 @@ namespace Test:
 end
 
 def collection_test():
-    x = array(<string>)
+    x = array(:string)
     x.push("Hello")
     x.push("world.")
     x.push("How")

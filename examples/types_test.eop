@@ -1,0 +1,9 @@
+def foo(y:int):
+  print(y * 3)
+end
+
+def main():
+  x : int = 5
+  print(x * 2)
+  foo(5)
+end
